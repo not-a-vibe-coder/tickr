@@ -35,8 +35,13 @@ export async function seriesFor(idx: number): Promise<Series | null> {
   return live.get(k) ?? null
 }
 
-/** If nothing was prebuilt (e.g. local dev without a build), every entry is a candidate. */
+/**
+ * Which pool entries may be scheduled. In production every entry is eligible so the schedule never
+ * depends on what a particular build managed to download (missing data is fetched live instead).
+ * Local dev (TICKR_NETWORK=local) only schedules entries that are in the prebuilt file.
+ */
 export function availability() {
+  if (process.env.TICKR_NETWORK !== 'local') return () => true
   const any = Object.keys(loadPrebuilt()).length > 0
   return (idx: number) => (any ? hasPrebuilt(idx) : true)
 }
