@@ -118,7 +118,29 @@
   50% { transform: translateY(-10px); }
 }
 
+@keyframes coin-float {
+  0%, 100% { transform: translateY(0) rotateY(-14deg); }
+  50% { transform: translateY(-10px) rotateY(14deg); }
+}
+.coin-float { animation: coin-float 6s ease-in-out infinite; transform-style: preserve-3d; }
+@keyframes drift {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 0.7; }
+  100% { transform: translateY(-120px); opacity: 0; }
+}
+.particles span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-market);
+  box-shadow: 0 0 8px var(--color-market);
+  animation: drift 9s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .coin-float, .particles span { animation: none; }
+  .particles { display: none; }
   html { scroll-behavior: auto; }
   .grain::after, .pulse-dot { animation: none; }
   *, *::before, *::after {
