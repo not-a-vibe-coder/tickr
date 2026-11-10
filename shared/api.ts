@@ -14,6 +14,8 @@ export type PuzzlePayload = {
   label: string | null
   /** Price path normalised so the first close = 100. Absolute prices are hidden. */
   points: number[]
+  /** Daily candles [open, high, low, close], rebased the same way as `points`. */
+  candles: [number, number, number, number][]
   /** 0..1 relative volume per point. */
   volume: number[]
   /** Month label per point index where a month starts. */
@@ -55,10 +57,12 @@ export type PlayerPayload = {
   avgGuesses: number | null
   lastDay: number
   solvedToday: number
-  rewards: { streak: number; token: string; symbol: string; amount: string; earned: boolean }[]
-  balances: { token: string; symbol: string; balance: string }[]
+  /** $TCKR points (cash available for demo trading). */
+  points: number
+  joined: boolean
+  milestones: { streak: number; bonus: number; earned: boolean }[]
 }
 
-export type LeaderboardRow = { address: string; streak: number; bestStreak: number; solves: number; avgGuesses: number }
+export type LeaderboardRow = { address: string; streak: number; bestStreak: number; solves: number; avgGuesses: number; netWorth: number; cash: number; positions: number }
 
 export type ClaimResponse = { txHash?: string; signature?: string; deadline: string; day: number; guesses: number; alreadyRecorded?: boolean }

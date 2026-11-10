@@ -1,7 +1,7 @@
-import { createPublicClient, createWalletClient, formatUnits, http, type Address, type Hex } from 'viem'
+import { createPublicClient, createWalletClient, formatUnits, http, parseUnits, type Address, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { env } from './env.js'
-import { ERC20_ABI, SOLVE_TYPES, TICKR_ABI, localChain, robinhoodTestnet } from '../shared/chain.js'
+import { EIP712_VERSION, QUOTE_TYPES, SOLVE_TYPES, TICKR_ABI, localChain, robinhoodTestnet } from '../shared/chain.js'
 
 export const chain = env.network === 'local' ? localChain : robinhoodTestnet
 export const rpcUrl = env.rpcUrl ?? chain.rpcUrls.default.http[0]
@@ -11,74 +11,81 @@ const account = env.signerKey ? privateKeyToAccount(env.signerKey) : null
 const wallet = account ? createWalletClient({ account, chain, transport: http(rpcUrl) }) : null
 
 export const onchainReady = () => Boolean(env.contract)
+const domain = () => ({ name: 'Tickr', version: EIP712_VERSION, chainId: chain.id, verifyingContract: env.contract! })
+const read = <T>(functionName: string, args: unknown[] = []) =>
+  publicClient.readContract({ address: env.contract!, abi: TICKR_ABI, functionName, args } as never) as Promise<T>
+
+/**
+ * Relayer writes are serialised per instance (one nonce at a time) and retried once on a nonce clash,
+ * which can happen when several serverless instances send at the same moment.
+ */
+let queue: Promise<unknown> = Promise.resolve()
+function send(functionName: string, args: unknown[]): Promise<Hex> {
+  if (!wallet || !env.contract) return Promise.reject(new Error('Relayer not configured'))
+  const run = async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const nonce = await publicClient.getTransactionCount({ address: account!.address, blockTag: 'pending' })
+        return await wallet.writeContract({ address: env.contract!, abi: TICKR_ABI, functionName, args, nonce } as never)
+      } catch (e) {
+        const msg = String((e as Error).message)
+        if (attempt < 2 && /nonce|replacement|already known/i.test(msg)) continue
+        throw e
+      }
+    }
+  }
+  const p = queue.then(run, run)
+  queue = p.catch(() => undefined)
+  return p
+}
+
+// ───────────────────────────── daily ─────────────────────────────
 
 export async function signSolve(player: Address, day: number, guesses: number) {
   if (!account || !env.contract) throw new Error('Signer or contract not configured')
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 60)
-  const signature = await account.signTypedData({
-    domain: { name: 'Tickr', version: '1', chainId: chain.id, verifyingContract: env.contract },
-    types: SOLVE_TYPES,
-    primaryType: 'Solve',
-    message: { player, day, guesses, deadline },
-  })
+  const signature = await account.signTypedData({ domain: domain(), types: SOLVE_TYPES, primaryType: 'Solve', message: { player, day, guesses, deadline } })
   return { signature, deadline }
 }
+export const relaySolve = (player: Address, day: number, guesses: number, deadline: bigint, signature: Hex) =>
+  send('recordSolve', [player, day, guesses, deadline, signature])
+export const solvedIn = (player: Address, day: number) => (env.contract ? read<number>('solvedIn', [player, day]) : Promise.resolve(0))
+export const commitmentOf = (day: number) => (env.contract ? read<Hex>('commitments', [day]) : Promise.resolve(null))
+export const commitDays = (days: number[], hashes: Hex[]) => send('commitPuzzles', [days, hashes])
 
-export async function relaySolve(player: Address, day: number, guesses: number, deadline: bigint, signature: Hex) {
-  if (!wallet || !env.contract) throw new Error('Relayer not configured')
-  return wallet.writeContract({ address: env.contract, abi: TICKR_ABI, functionName: 'recordSolve', args: [player, day, guesses, deadline, signature] })
+// ───────────────────────────── trading ─────────────────────────────
+
+export const toWad = (n: number, dp = 8) => parseUnits(n.toFixed(dp), 18)
+export const fromWad = (n: bigint) => Number(formatUnits(n, 18))
+
+export async function portfolioOf(player: Address) {
+  const [cash, symbols, qty, cost] = await read<[bigint, string[], bigint[], bigint[]]>('getPortfolio', [player])
+  const joined = await read<boolean>('joined', [player])
+  return { cash: fromWad(cash), cashWad: cash, joined, holdings: symbols.map((s, i) => ({ symbol: s, qty: fromWad(qty[i]), qtyWad: qty[i], cost: fromWad(cost[i]) })) }
 }
 
-export async function solvedIn(player: Address, day: number) {
-  if (!env.contract) return 0
-  return publicClient.readContract({ address: env.contract, abi: TICKR_ABI, functionName: 'solvedIn', args: [player, day] })
+export async function executeTrade(q: { player: Address; symbol: string; isBuy: boolean; qty: bigint; price: bigint; nonce: bigint }) {
+  if (!account || !env.contract) throw new Error('Signer or contract not configured')
+  const quote = { ...q, deadline: BigInt(Math.floor(Date.now() / 1000) + 120) }
+  const signature = await account.signTypedData({ domain: domain(), types: QUOTE_TYPES, primaryType: 'Quote', message: quote })
+  const txHash = await send('trade', [quote, signature])
+  return { txHash, quote }
 }
 
-export async function commitmentOf(day: number) {
-  if (!env.contract) return null
-  return publicClient.readContract({ address: env.contract, abi: TICKR_ABI, functionName: 'commitments', args: [day] })
-}
+export const nonceUsed = (player: Address, nonce: bigint) => read<boolean>('usedNonce', [player, nonce])
 
-export async function commitDays(days: number[], hashes: Hex[]) {
-  if (!wallet || !env.contract) throw new Error('Signer or contract not configured')
-  return wallet.writeContract({ address: env.contract, abi: TICKR_ABI, functionName: 'commitPuzzles', args: [days, hashes] })
-}
-
-const tokenMeta = new Map<string, { symbol: string; decimals: number }>()
-async function meta(token: Address) {
-  if (!tokenMeta.has(token)) {
-    const [symbol, decimals] = await Promise.all([
-      publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: 'symbol' }).catch(() => 'TOKEN'),
-      publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: 'decimals' }).catch(() => 18),
-    ])
-    tokenMeta.set(token, { symbol, decimals: Number(decimals) })
-  }
-  return tokenMeta.get(token)!
-}
+// ───────────────────────────── stats ─────────────────────────────
 
 export async function playerStats(player: Address, today: number) {
-  const c = env.contract!
-  const [p, live, solvedToday, [streaks, rewards]] = await Promise.all([
-    publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'players', args: [player] }),
-    publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'liveStreak', args: [player, today] }),
-    publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'solvedIn', args: [player, today] }),
-    publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'getMilestones' }),
+  const [p, live, solvedToday, points, joined] = await Promise.all([
+    read<[number, number, number, number, number]>('players', [player]),
+    read<number>('liveStreak', [player, today]),
+    read<number>('solvedIn', [player, today]),
+    read<bigint>('points', [player]),
+    read<boolean>('joined', [player]),
   ])
   const [lastDay, , bestStreak, solves, totalGuesses] = p
-  const tokens = [...new Set(rewards.map((r) => r.token))]
-  const balances = await Promise.all(
-    tokens.map(async (t) => {
-      const m = await meta(t)
-      const b = await publicClient.readContract({ address: t, abi: ERC20_ABI, functionName: 'balanceOf', args: [player] })
-      return { token: t, symbol: m.symbol, balance: formatUnits(b, m.decimals) }
-    }),
-  )
-  const rewardRows = await Promise.all(
-    streaks.map(async (s, i) => {
-      const m = await meta(rewards[i].token)
-      return { streak: s, token: rewards[i].token, symbol: m.symbol, amount: formatUnits(rewards[i].amount, m.decimals), earned: bestStreak >= s }
-    }),
-  )
+  const milestones = await Promise.all([3, 7, 14, 30].map(async (s) => ({ streak: s, bonus: fromWad(await read<bigint>('milestoneBonus', [s])), earned: bestStreak >= s })))
   return {
     address: player,
     streak: live,
@@ -87,22 +94,22 @@ export async function playerStats(player: Address, today: number) {
     avgGuesses: solves ? +(totalGuesses / solves).toFixed(2) : null,
     lastDay,
     solvedToday,
-    rewards: rewardRows.sort((a, b) => a.streak - b.streak),
-    balances,
+    points: joined ? fromWad(points) : fromWad(await read<bigint>('starterPoints')),
+    joined,
+    milestones,
   }
 }
 
-export async function leaderboard(today: number) {
-  const c = env.contract!
-  const n = await publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'playerCount' })
-  const rows: { address: string; streak: number; bestStreak: number; solves: number; avgGuesses: number }[] = []
+export async function allPlayers(today: number) {
+  const n = await read<bigint>('playerCount')
+  const rows: { address: Address; streak: number; bestStreak: number; solves: number; avgGuesses: number; cash: number }[] = []
   for (let off = 0n; off < n; off += 200n) {
-    const [addrs, stats] = await publicClient.readContract({ address: c, abi: TICKR_ABI, functionName: 'getPlayers', args: [off, 200n] })
+    const [addrs, stats, cash] = await read<[Address[], { lastDay: number; streak: number; bestStreak: number; solves: number; totalGuesses: number }[], bigint[]]>('getPlayers', [off, 200n])
     addrs.forEach((a, i) => {
       const s = stats[i]
-      const live = s.lastDay === today || s.lastDay + 1 === today ? s.streak : 0
-      rows.push({ address: a, streak: live, bestStreak: s.bestStreak, solves: s.solves, avgGuesses: +(s.totalGuesses / Math.max(1, s.solves)).toFixed(2) })
+      const live = s.solves > 0 && (s.lastDay === today || s.lastDay + 1 === today) ? s.streak : 0
+      rows.push({ address: a, streak: live, bestStreak: s.bestStreak, solves: s.solves, avgGuesses: s.solves ? +(s.totalGuesses / s.solves).toFixed(2) : 0, cash: fromWad(cash[i]) })
     })
   }
-  return rows.sort((a, b) => b.streak - a.streak || b.bestStreak - a.bestStreak || a.avgGuesses - b.avgGuesses).slice(0, 50)
+  return rows
 }

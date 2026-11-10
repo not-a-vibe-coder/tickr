@@ -61,8 +61,15 @@ export function toPayloadSeries(s: Series) {
       last = m
     }
   })
+  const r = (x: number) => +((x / base) * 100).toFixed(2)
   return {
-    points: s.c.map((c) => +((c / base) * 100).toFixed(2)),
+    points: s.c.map(r),
+    candles: s.c.map((c, i) => {
+      const o = s.o?.[i] ?? (i ? s.c[i - 1] : c)
+      const h = Math.max(s.h?.[i] ?? Math.max(o, c), o, c)
+      const l = Math.min(s.l?.[i] ?? Math.min(o, c), o, c)
+      return [r(o), r(h), r(l), r(c)] as [number, number, number, number]
+    }),
     volume: s.v.map((v) => +(v / vmax).toFixed(3)),
     monthTicks,
   }

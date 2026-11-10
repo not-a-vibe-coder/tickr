@@ -64,9 +64,10 @@ export function clueFor(c: CompanyInfo, year: number, i: number): { label: strin
   return { label: CLUE_LABELS[i], value: values[i] }
 }
 
-export function evaluateGuess(guess: CompanyInfo, answer: CompanyInfo): GuessResult {
+/** Result for any guessed ticker. Sector comes from the guess's known metadata (null = unknown → never 🟨). */
+export function evaluateGuess(guess: { ticker: string; sector: Sector | null }, answer: CompanyInfo): GuessResult {
   if (guess.ticker === answer.ticker) return 'hit'
-  return guess.sector === answer.sector ? 'warm' : 'miss'
+  return guess.sector && guess.sector === answer.sector ? 'warm' : 'miss'
 }
 
 export const MAX_GUESSES = 6
