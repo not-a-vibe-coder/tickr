@@ -77,6 +77,19 @@
   }
 }
 
+/* classified redaction bar */
+.redacted {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(-45deg, #f3f4ed 0 10px, #e2e4da 10px 20px);
+  color: #080a09;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+}
+
 /* film grain */
 .grain::after {
   content: "";
