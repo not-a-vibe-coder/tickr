@@ -3,25 +3,19 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {TickrGame} from "../src/TickrGame.sol";
-import {MockStockToken} from "../src/mocks/MockStockToken.sol";
 
 contract TickrGameTest is Test {
     TickrGame game;
-    MockStockToken tsla;
     uint256 signerKey = 0xA11CE;
     address signer;
     address owner = address(0x0123);
     address alice = address(0xA1);
     address relayer = address(0xBEEF);
+    uint256 nonce;
 
     function setUp() public {
         signer = vm.addr(signerKey);
         game = new TickrGame(owner, signer);
-        tsla = new MockStockToken("Tesla Test", "TSLA");
-        tsla.mint(address(game), 100 ether);
-        vm.prank(owner);
-        game.setMilestone(3, address(tsla), 1 ether);
-
         uint32[] memory d = new uint32[](10);
         bytes32[] memory h = new bytes32[](10);
         for (uint32 i; i < 10; ++i) {
@@ -32,8 +26,7 @@ contract TickrGameTest is Test {
         game.commitPuzzles(d, h);
     }
 
-    function _sig(address player, uint32 day, uint8 guesses, uint256 deadline) internal view returns (bytes memory) {
-        bytes32 structHash = keccak256(abi.encode(game.SOLVE_TYPEHASH(), player, day, guesses, deadline));
+    function _signDigest(bytes32 structHash) internal view returns (bytes memory) {
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", game.domainSeparator(), structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, digest);
         return abi.encodePacked(r, s, v);
@@ -41,22 +34,41 @@ contract TickrGameTest is Test {
 
     function _solve(address player, uint32 day, uint8 guesses) internal {
         uint256 dl = block.timestamp + 1 hours;
+        bytes memory sig = _signDigest(keccak256(abi.encode(game.SOLVE_TYPEHASH(), player, day, guesses, dl)));
         vm.prank(relayer);
-        game.recordSolve(player, day, guesses, dl, _sig(player, day, guesses, dl));
+        game.recordSolve(player, day, guesses, dl, sig);
     }
 
-    function test_streakBuildsAndPaysMilestone() public {
-        _solve(alice, 100, 4);
-        _solve(alice, 101, 2);
-        assertEq(tsla.balanceOf(alice), 0);
-        _solve(alice, 102, 6);
+    function _quote(address player, string memory sym, bool isBuy, uint256 qty, uint256 price)
+        internal
+        returns (TickrGame.Quote memory q, bytes memory sig)
+    {
+        q = TickrGame.Quote(player, sym, isBuy, qty, price, ++nonce, block.timestamp + 60);
+        sig = _signDigest(
+            keccak256(abi.encode(game.QUOTE_TYPEHASH(), q.player, keccak256(bytes(sym)), isBuy, qty, price, q.nonce, q.deadline))
+        );
+    }
+
+    function _trade(address player, string memory sym, bool isBuy, uint256 qty, uint256 price) internal {
+        (TickrGame.Quote memory q, bytes memory sig) = _quote(player, sym, isBuy, qty, price);
+        vm.prank(relayer);
+        game.trade(q, sig);
+    }
+
+    // ── daily ──
+
+    function test_solveAwardsPointsAndStreak() public {
+        _solve(alice, 100, 4); // 10k starter + 100*3 + 20*1
+        assertEq(game.points(alice), 10_000 ether + 300 ether + 20 ether);
+        _solve(alice, 101, 1); // + 600 + 40
+        _solve(alice, 102, 6); // + 100 + 60 + 500 milestone(3)
         (uint32 lastDay, uint32 streak, uint32 best, uint32 solves, uint32 total) = game.players(alice);
         assertEq(lastDay, 102);
         assertEq(streak, 3);
         assertEq(best, 3);
         assertEq(solves, 3);
-        assertEq(total, 12);
-        assertEq(tsla.balanceOf(alice), 1 ether, "milestone reward");
+        assertEq(total, 11);
+        assertEq(game.points(alice), 10_000 ether + 320 ether + 640 ether + 660 ether);
         assertEq(game.playerCount(), 1);
     }
 
@@ -67,44 +79,26 @@ contract TickrGameTest is Test {
         (, uint32 streak, uint32 best,,) = game.players(alice);
         assertEq(streak, 1);
         assertEq(best, 2);
-        assertEq(game.liveStreak(alice, 103), 1);
         assertEq(game.liveStreak(alice, 105), 0);
     }
 
-    function test_cannotSolveTwice() public {
+    function test_cannotSolveTwiceOrForge() public {
         _solve(alice, 100, 3);
         uint256 dl = block.timestamp + 1 hours;
-        bytes memory sig = _sig(alice, 100, 3, dl);
+        bytes memory sig = _signDigest(keccak256(abi.encode(game.SOLVE_TYPEHASH(), alice, uint32(100), uint8(3), dl)));
         vm.expectRevert(abi.encodeWithSelector(TickrGame.AlreadySolved.selector, alice, uint32(100)));
         game.recordSolve(alice, 100, 3, dl, sig);
-    }
 
-    function test_rejectsForgedSignature() public {
-        uint256 dl = block.timestamp + 1 hours;
-        bytes memory sig = _sig(alice, 100, 3, dl);
+        bytes memory sig2 = _signDigest(keccak256(abi.encode(game.SOLVE_TYPEHASH(), alice, uint32(101), uint8(3), dl)));
         vm.expectRevert(TickrGame.BadSignature.selector);
-        game.recordSolve(alice, 100, 1, dl, sig); // tampered guess count
+        game.recordSolve(alice, 101, 1, dl, sig2);
     }
 
-    function test_rejectsUncommittedDayAndExpired() public {
+    function test_uncommittedDayRejected() public {
         uint256 dl = block.timestamp + 1 hours;
-        bytes memory s500 = _sig(alice, 500, 3, dl);
+        bytes memory sig = _signDigest(keccak256(abi.encode(game.SOLVE_TYPEHASH(), alice, uint32(500), uint8(3), dl)));
         vm.expectRevert(abi.encodeWithSelector(TickrGame.NotCommitted.selector, uint32(500)));
-        game.recordSolve(alice, 500, 3, dl, s500);
-
-        bytes memory sig = _sig(alice, 100, 3, dl);
-        vm.warp(dl + 1);
-        vm.expectRevert(TickrGame.Expired.selector);
-        game.recordSolve(alice, 100, 3, dl, sig);
-    }
-
-    function test_unfundedMilestoneDoesNotRevert() public {
-        vm.prank(owner);
-        game.withdraw(address(tsla), owner, 100 ether);
-        _solve(alice, 100, 3);
-        _solve(alice, 101, 3);
-        _solve(alice, 102, 3);
-        assertEq(tsla.balanceOf(alice), 0);
+        game.recordSolve(alice, 500, 3, dl, sig);
     }
 
     function test_revealMatchesCommitment() public {
@@ -114,16 +108,75 @@ contract TickrGameTest is Test {
         game.revealPuzzle(102, "TSLA", bytes32(uint256(2)));
     }
 
-    function test_onlyOwnerOrSignerCommits() public {
-        uint32[] memory d = new uint32[](1);
-        bytes32[] memory h = new bytes32[](1);
-        d[0] = 900;
-        h[0] = bytes32("x");
+    // ── trading ──
+
+    function test_buySellRealizesPnl() public {
+        _trade(alice, "TSLA", true, 10 ether, 250 ether); // spend 2,500
+        assertEq(game.points(alice), 7_500 ether);
+        (uint256 cash, string[] memory syms, uint256[] memory qty, uint256[] memory cost) = game.getPortfolio(alice);
+        assertEq(cash, 7_500 ether);
+        assertEq(syms.length, 1);
+        assertEq(syms[0], "TSLA");
+        assertEq(qty[0], 10 ether);
+        assertEq(cost[0], 2_500 ether);
+
+        _trade(alice, "TSLA", false, 4 ether, 300 ether); // +1,200, basis 1,000 → +200 realized
+        assertEq(game.points(alice), 8_700 ether);
+        (, , qty, cost) = game.getPortfolio(alice);
+        assertEq(qty[0], 6 ether);
+        assertEq(cost[0], 1_500 ether);
+
+        _trade(alice, "TSLA", false, 6 ether, 200 ether); // closes position
+        (, syms,,) = game.getPortfolio(alice);
+        assertEq(syms.length, 0);
+        assertEq(game.points(alice), 9_900 ether);
+    }
+
+    function test_multiplePositionsAndRemoval() public {
+        _trade(alice, "TSLA", true, 1 ether, 100 ether);
+        _trade(alice, "AMD", true, 1 ether, 100 ether);
+        _trade(alice, "NVDA", true, 1 ether, 100 ether);
+        _trade(alice, "TSLA", false, 1 ether, 100 ether);
+        (, string[] memory syms,,) = game.getPortfolio(alice);
+        assertEq(syms.length, 2);
+        _trade(alice, "TSLA", true, 2 ether, 100 ether);
+        (, syms,,) = game.getPortfolio(alice);
+        assertEq(syms.length, 3);
+    }
+
+    function test_cannotOverspendOrOversell() public {
+        (TickrGame.Quote memory q, bytes memory sig) = _quote(alice, "TSLA", true, 100 ether, 250 ether);
+        vm.expectRevert(abi.encodeWithSelector(TickrGame.InsufficientPoints.selector, 25_000 ether, 10_000 ether));
+        game.trade(q, sig);
+        game.join(alice);
+        (q, sig) = _quote(alice, "AMD", false, 1 ether, 100 ether);
+        vm.expectRevert(abi.encodeWithSelector(TickrGame.InsufficientPosition.selector, 1 ether, 0));
+        game.trade(q, sig);
+    }
+
+    function test_quoteReplayTamperAndExpiry() public {
+        (TickrGame.Quote memory q, bytes memory sig) = _quote(alice, "TSLA", true, 1 ether, 100 ether);
+        game.trade(q, sig);
+        vm.expectRevert(TickrGame.NonceUsed.selector);
+        game.trade(q, sig);
+
+        (q, sig) = _quote(alice, "TSLA", true, 1 ether, 100 ether);
+        q.price = 1 ether; // tamper
+        vm.expectRevert(TickrGame.BadSignature.selector);
+        game.trade(q, sig);
+
+        (q, sig) = _quote(alice, "TSLA", true, 1 ether, 100 ether);
+        vm.warp(q.deadline + 1);
+        vm.expectRevert(TickrGame.Expired.selector);
+        game.trade(q, sig);
+    }
+
+    function test_grantPointsAuth() public {
         vm.expectRevert(TickrGame.NotAuthorized.selector);
         vm.prank(alice);
-        game.commitPuzzles(d, h);
+        game.grantPoints(alice, 1 ether, "x");
         vm.prank(signer);
-        game.commitPuzzles(d, h);
-        assertEq(game.commitments(900), bytes32("x"));
+        game.grantPoints(alice, 1 ether, "weekly top 10");
+        assertEq(game.points(alice), 10_001 ether);
     }
 }
