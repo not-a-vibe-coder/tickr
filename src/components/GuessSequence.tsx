@@ -122,7 +122,7 @@ export default function GuessSequence() {
             <div className="gs-board panel relative rounded-3xl p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="micro text-muted">Puzzle #00{DEMO_PUZZLE.number}</span>
+                  <span className="micro text-muted">Puzzle #00{DEMO_PUZZLE.id}</span>
                   <span className="relative font-display text-lg font-semibold tracking-tight">
                     Advanced Micro Devices
                     <span className="gs-redact absolute inset-0 -mx-1 rounded-sm bg-paper" aria-hidden="true" />

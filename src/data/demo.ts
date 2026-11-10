@@ -38,19 +38,6 @@ export const COMPANIES: Company[] = [
 
 export type Clue = { label: string; value: string; exhibit: string }
 
-export const DEMO_PUZZLE = {
-  number: 1,
-  answer: 'AMD',
-  /** Clues unlock one per incorrect guess (5 wrong guesses unlock all 5). */
-  clues: [
-    { exhibit: 'A', label: 'Industry', value: 'Technology' },
-    { exhibit: 'B', label: 'Market Cap', value: 'Large Cap' },
-    { exhibit: 'C', label: 'Year', value: '2021' },
-    { exhibit: 'D', label: 'Sub-industry', value: 'Semiconductors' },
-    { exhibit: 'E', label: 'Headquarters', value: 'Santa Clara, CA · Founded 1969' },
-  ] satisfies Clue[],
-}
-
 /** Scripted sequence used by the storytelling scenes. */
 export const STORY_GUESSES = [
   { ticker: 'TSLA', name: 'Tesla', result: 'miss' as const },
@@ -95,3 +82,68 @@ export const storyShape = (t: number) =>
 
 export const STORY_SERIES = illustrativeSeries(7, 140, storyShape)
 export const STORY_VOLUME = illustrativeVolume(11, 140)
+
+export type Puzzle = {
+  id: number
+  answer: string
+  /** Clues unlock one per incorrect guess (5 wrong guesses unlock all 5). */
+  clues: Clue[]
+  series: number[]
+  volume: number[]
+  year: number
+}
+
+export const PUZZLES: Puzzle[] = [
+  {
+    id: 1,
+    answer: 'AMD',
+    year: 2021,
+    clues: [
+      { exhibit: 'A', label: 'Industry', value: 'Technology' },
+      { exhibit: 'B', label: 'Market Cap', value: 'Large Cap' },
+      { exhibit: 'C', label: 'Year', value: '2021' },
+      { exhibit: 'D', label: 'Sub-industry', value: 'Semiconductors' },
+      { exhibit: 'E', label: 'Headquarters', value: 'Santa Clara, CA · Founded 1969' },
+    ],
+    series: STORY_SERIES,
+    volume: STORY_VOLUME,
+  },
+  {
+    id: 2,
+    answer: 'NFLX',
+    year: 2019,
+    clues: [
+      { exhibit: 'A', label: 'Industry', value: 'Communication' },
+      { exhibit: 'B', label: 'Market Cap', value: 'Large Cap' },
+      { exhibit: 'C', label: 'Year', value: '2019' },
+      { exhibit: 'D', label: 'Sub-industry', value: 'Streaming & Entertainment' },
+      { exhibit: 'E', label: 'Headquarters', value: 'Los Gatos, CA · Founded 1997' },
+    ],
+    series: illustrativeSeries(23, 140, (t) => Math.sin(t * 5) * 0.3 - t * 0.4 + Math.exp(-Math.pow((t - 0.35) * 6, 2)) * 0.5),
+    volume: illustrativeVolume(29, 140),
+  },
+  {
+    id: 3,
+    answer: 'KO',
+    year: 2018,
+    clues: [
+      { exhibit: 'A', label: 'Industry', value: 'Consumer Staples' },
+      { exhibit: 'B', label: 'Market Cap', value: 'Large Cap' },
+      { exhibit: 'C', label: 'Year', value: '2018' },
+      { exhibit: 'D', label: 'Sub-industry', value: 'Beverages' },
+      { exhibit: 'E', label: 'Headquarters', value: 'Atlanta, GA · Founded 1892' },
+    ],
+    series: illustrativeSeries(41, 140, (t) => Math.sin(t * 9) * 0.12 + t * 0.25, 0.5),
+    volume: illustrativeVolume(43, 140),
+  },
+]
+
+export const DEMO_PUZZLE = PUZZLES[0]
+
+export const SAMPLE_LEADERBOARD = [
+  { handle: 'chartwhisperer', streak: 41, avg: 2.8 },
+  { handle: 'lagos_quant', streak: 38, avg: 3.1 },
+  { handle: 'candle.eth', streak: 33, avg: 3.0 },
+  { handle: 'mira_reads_tape', streak: 29, avg: 3.4 },
+  { handle: 'you', streak: 7, avg: 3.9 },
+]

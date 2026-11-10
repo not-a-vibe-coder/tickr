@@ -3,6 +3,7 @@ import Hero from './components/Hero'
 import GuessSequence from './components/GuessSequence'
 import ClueReveal from './components/ClueReveal'
 import CompanyReveal from './components/CompanyReveal'
+import ProductDemo from './components/ProductDemo'
 
 export default function App() {
   return (
@@ -16,7 +17,7 @@ export default function App() {
         <GuessSequence />
         <ClueReveal />
         <CompanyReveal />
-        <div className="h-[100vh]" />
+        <ProductDemo />
       </main>
     </div>
   )
