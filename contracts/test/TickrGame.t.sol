@@ -171,6 +171,47 @@ contract TickrGameTest is Test {
         game.trade(q, sig);
     }
 
+    function test_analytics() public {
+        address bob = address(0xB0B);
+        _trade(alice, "TSLA", true, 2 ether, 100 ether);
+        _trade(bob, "TSLA", true, 1 ether, 110 ether);
+        _trade(alice, "AMD", true, 1 ether, 50 ether);
+        (uint32 holders, uint32 trades, uint256 vol) = game.symbolStats(keccak256("TSLA"));
+        assertEq(holders, 2);
+        assertEq(trades, 2);
+        assertEq(vol, 310 ether);
+
+        _trade(alice, "TSLA", false, 2 ether, 120 ether); // alice exits TSLA
+        (holders, trades,) = game.symbolStats(keccak256("TSLA"));
+        assertEq(holders, 1);
+        assertEq(trades, 3);
+        assertEq(game.totalVolume(), 310 ether + 50 ether + 240 ether);
+
+        (TickrGame.TradeRecord[] memory rec, string[] memory syms) = game.getRecentTrades(10);
+        assertEq(rec.length, 4);
+        assertEq(syms[0], "TSLA");
+        assertEq(rec[0].player, alice);
+        assertFalse(rec[0].isBuy);
+        assertEq(syms[1], "AMD");
+
+        (rec, syms) = game.getPlayerTrades(alice, 2);
+        assertEq(rec.length, 2);
+        assertEq(syms[0], "TSLA");
+        assertEq(syms[1], "AMD");
+        assertEq(game.tradeCountOf(bob), 1);
+
+        (string[] memory all, TickrGame.SymbolStats[] memory st) = game.getSymbolStats();
+        assertEq(all.length, 2);
+        assertEq(st[1].holders, 1); // AMD
+    }
+
+    function test_recentRingWraps() public {
+        for (uint256 i; i < 70; ++i) _trade(alice, "TSLA", true, 1 ether, 1 ether);
+        (TickrGame.TradeRecord[] memory rec,) = game.getRecentTrades(100);
+        assertEq(rec.length, 64);
+        assertEq(game.tradeCount(), 70);
+    }
+
     function test_grantPointsAuth() public {
         vm.expectRevert(TickrGame.NotAuthorized.selector);
         vm.prank(alice);

@@ -37,6 +37,22 @@ contract TickrGame is Ownable, EIP712 {
         uint256 cost; // points paid for the open quantity (cost basis), 18 decimals
     }
 
+    /// @notice Compact trade record kept on-chain for activity feeds and public profiles.
+    struct TradeRecord {
+        address player;
+        bool isBuy;
+        uint64 time;
+        bytes32 symbolHash;
+        uint128 qty;
+        uint128 price;
+    }
+
+    struct SymbolStats {
+        uint32 holders;
+        uint32 trades;
+        uint256 volume; // points traded, 18 decimals
+    }
+
     struct Quote {
         address player;
         string symbol;
@@ -77,6 +93,14 @@ contract TickrGame is Ownable, EIP712 {
     mapping(bytes32 => string) public symbolOf;
     mapping(address => mapping(uint256 => bool)) public usedNonce;
     uint256 public tradeCount;
+    uint256 public totalVolume;
+
+    // ── analytics ──
+    uint256 public constant RECENT = 64;
+    TradeRecord[64] internal recent; // ring buffer of the latest trades, all players
+    mapping(address => TradeRecord[]) internal history;
+    mapping(bytes32 => SymbolStats) public symbolStats;
+    bytes32[] internal tradedSymbols;
 
     event SignerUpdated(address signer);
     event PuzzleCommitted(uint32 indexed day, bytes32 commitment);
@@ -231,7 +255,11 @@ contract TickrGame is Ownable, EIP712 {
             if (heldIndex[q.player][symbolHash] == 0) {
                 held[q.player].push(symbolHash);
                 heldIndex[q.player][symbolHash] = held[q.player].length;
-                if (bytes(symbolOf[symbolHash]).length == 0) symbolOf[symbolHash] = q.symbol;
+                symbolStats[symbolHash].holders += 1;
+                if (bytes(symbolOf[symbolHash]).length == 0) {
+                    symbolOf[symbolHash] = q.symbol;
+                    tradedSymbols.push(symbolHash);
+                }
             }
         } else {
             if (pos.qty < q.qty) revert InsufficientPosition(q.qty, pos.qty);
@@ -242,6 +270,13 @@ contract TickrGame is Ownable, EIP712 {
             realized = int256(value) - int256(basis);
             if (pos.qty == 0) _removeHeld(q.player, symbolHash);
         }
+        TradeRecord memory rec = TradeRecord(q.player, q.isBuy, uint64(block.timestamp), symbolHash, uint128(q.qty), uint128(q.price));
+        recent[tradeCount % RECENT] = rec;
+        history[q.player].push(rec);
+        SymbolStats storage st = symbolStats[symbolHash];
+        st.trades += 1;
+        st.volume += value;
+        totalVolume += value;
         tradeCount += 1;
         emit Traded(q.player, symbolHash, q.symbol, q.isBuy, q.qty, q.price, value, realized);
     }
@@ -255,6 +290,7 @@ contract TickrGame is Ownable, EIP712 {
         arr.pop();
         delete heldIndex[player][symbolHash];
         delete positions[player][symbolHash];
+        symbolStats[symbolHash].holders -= 1;
     }
 
     // ───────────────────────────── views ─────────────────────────────
@@ -275,6 +311,44 @@ contract TickrGame is Ownable, EIP712 {
             cost[i] = p.cost;
         }
         cash = joined[player] ? points[player] : starterPoints;
+    }
+
+    /// @notice Latest trades across all players, newest first (max 64).
+    function getRecentTrades(uint256 n) external view returns (TradeRecord[] memory out, string[] memory symbols) {
+        uint256 total = tradeCount < RECENT ? tradeCount : RECENT;
+        if (n > total) n = total;
+        out = new TradeRecord[](n);
+        symbols = new string[](n);
+        for (uint256 i; i < n; ++i) {
+            out[i] = recent[(tradeCount - 1 - i) % RECENT];
+            symbols[i] = symbolOf[out[i].symbolHash];
+        }
+    }
+
+    /// @notice A player's trades, newest first.
+    function getPlayerTrades(address player, uint256 n) external view returns (TradeRecord[] memory out, string[] memory symbols) {
+        TradeRecord[] storage h = history[player];
+        if (n > h.length) n = h.length;
+        out = new TradeRecord[](n);
+        symbols = new string[](n);
+        for (uint256 i; i < n; ++i) {
+            out[i] = h[h.length - 1 - i];
+            symbols[i] = symbolOf[out[i].symbolHash];
+        }
+    }
+
+    function tradeCountOf(address player) external view returns (uint256) {
+        return history[player].length;
+    }
+
+    /// @notice Stats for every token ever traded in Tickr.
+    function getSymbolStats() external view returns (string[] memory symbols, SymbolStats[] memory stats) {
+        symbols = new string[](tradedSymbols.length);
+        stats = new SymbolStats[](tradedSymbols.length);
+        for (uint256 i; i < tradedSymbols.length; ++i) {
+            symbols[i] = symbolOf[tradedSymbols[i]];
+            stats[i] = symbolStats[tradedSymbols[i]];
+        }
     }
 
     function liveStreak(address player, uint32 today) external view returns (uint32) {
