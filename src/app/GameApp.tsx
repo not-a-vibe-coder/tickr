@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom'
-import { Flame, LogOut, User } from 'lucide-react'
+import { Coins, Flame, LogOut, User } from 'lucide-react'
 import { Wordmark } from '../components/Logo'
 import { SeasonBadge } from '../components/Navigation'
 import Game from './Game'
 import Leaderboard from './Leaderboard'
 import Profile from './Profile'
 import Duel, { parseDuel } from './Duel'
+import Trade, { fmtNum } from './Trade'
 import { AuthProvider, shortAddr, useAuth } from './auth'
 import { useConfig, useCountdownTo } from './useConfig'
 import { api } from './api'
@@ -60,13 +61,15 @@ function Shell() {
           <nav className="hidden items-center gap-1 rounded-full border border-line bg-white/[0.02] p-1 md:flex" aria-label="Game">
             {tab('/play', 'Daily')}
             {tab('/play/practice', 'Practice')}
+            {tab('/trade', 'Trade')}
             {tab('/leaderboard', 'Leaderboard')}
           </nav>
           <div className="flex items-center gap-2">
             <span className="micro hidden rounded-full border border-line px-3 py-1.5 text-muted lg:inline">Next <span className="tabular-nums text-market">{countdown}</span></span>
             {player && (
-              <Link to="/me" className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 font-mono text-[12px] text-amber" title="Current streak">
-                <Flame size={13} /> {player.streak}
+              <Link to="/me" className="flex items-center gap-3 rounded-full border border-line px-3 py-1.5 font-mono text-[12px]" title="Streak and $TCKR points">
+                <span className="flex items-center gap-1 text-amber"><Flame size={13} /> {player.streak}</span>
+                <span className="hidden items-center gap-1 text-market sm:flex"><Coins size={13} /> {fmtNum(player.points, 0)}</span>
               </Link>
             )}
             {auth.address ? (
@@ -87,6 +90,7 @@ function Shell() {
         <nav className="flex justify-center gap-1 border-t border-line px-2 py-2 md:hidden" aria-label="Game (mobile)">
           {tab('/play', 'Daily')}
           {tab('/play/practice', 'Practice')}
+          {tab('/trade', 'Trade')}
           {tab('/leaderboard', 'Board')}
           {tab('/me', 'Me')}
         </nav>
@@ -99,6 +103,7 @@ function Shell() {
           <Routes>
             <Route path="/play" element={<PlayPage cfg={cfg} mode="daily" streak={player?.streak ?? 0} />} />
             <Route path="/play/practice" element={<PlayPage cfg={cfg} mode="practice" />} />
+            <Route path="/trade" element={<Trade cfg={cfg} />} />
             <Route path="/leaderboard" element={<Leaderboard cfg={cfg} />} />
             <Route path="/me" element={<Profile cfg={cfg} player={player} />} />
             <Route path="/duel" element={<Duel cfg={cfg} />} />
@@ -109,7 +114,7 @@ function Shell() {
 
       <footer className="border-t border-line px-4 py-6 text-center text-[11.5px] text-muted md:px-8">
         <SeasonBadge className="mb-3" />
-        <p className="mx-auto max-w-2xl">Season 0 runs on Robinhood Chain testnet. Rewards are test tokens with no monetary value. Charts are real historical prices, indexed to 100. Not investment advice. Not affiliated with Robinhood Markets, Inc.</p>
+        <p className="mx-auto max-w-2xl">Runs on Robinhood Chain testnet. $TCKR are in-game points with no monetary value. Daily charts are real historical prices; trading uses live Robinhood Stock Token prices. Demo only — not investment advice. Not affiliated with Robinhood Markets, Inc.</p>
       </footer>
     </div>
   )

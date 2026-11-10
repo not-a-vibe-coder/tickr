@@ -1,54 +1,36 @@
-import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Search } from 'lucide-react'
-import { COMPANIES, type CompanyInfo } from '../../shared/companies'
+import { CornerDownLeft, Search } from 'lucide-react'
+import { searchAssets, TokenLogo, useAssets } from './useAssets'
+import type { Asset } from '../../shared/market'
 
-/** Accessible company combobox + submit. */
-export default function GuessInput({
-  used,
-  disabled,
-  busy,
-  label,
-  onGuess,
-}: {
-  used: string[]
-  disabled?: boolean
-  busy?: boolean
-  label: string
-  onGuess: (ticker: string) => void
-}) {
+/**
+ * Company picker over every Robinhood Stock Token.
+ * Type a ticker or name → ↑/↓ to move → Enter (or click) locks the guess in. One action, no second confirm.
+ */
+export default function GuessInput({ used, disabled, busy, label, onGuess }: { used: string[]; disabled?: boolean; busy?: boolean; label: string; onGuess: (ticker: string) => void }) {
+  const assets = useAssets()
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<CompanyInfo | null>(null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
-  const [error, setError] = useState('')
   const id = useId()
   const input = useRef<HTMLInputElement>(null)
+  const list = useRef<HTMLUListElement>(null)
 
-  const options = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return COMPANIES.filter((c) => !used.includes(c.ticker))
-      .filter((c) => !q || c.name.toLowerCase().includes(q) || c.ticker.toLowerCase().startsWith(q))
-      .slice(0, 7)
-  }, [query, used])
+  const options = useMemo(() => (query.trim() ? searchAssets(assets, query, 8, used) : []), [assets, query, used])
+  useEffect(() => setActive(0), [query])
+  useEffect(() => {
+    list.current?.querySelector(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [active])
 
-  const choose = (c: CompanyInfo) => {
-    setSelected(c)
-    setQuery(c.name)
-    setOpen(false)
-    setError('')
-  }
-  const submit = () => {
+  const pick = (a: Asset) => {
     if (disabled || busy) return
-    const q = query.trim().toLowerCase()
-    const c = selected ?? options.find((o) => o.name.toLowerCase() === q || o.ticker.toLowerCase() === q) ?? (options.length === 1 ? options[0] : undefined)
-    if (!c) return setError('Pick a company from the list.')
-    onGuess(c.ticker)
+    onGuess(a.symbol)
     setQuery('')
-    setSelected(null)
-    setActive(0)
+    setOpen(false)
     input.current?.focus()
   }
+
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -59,86 +41,90 @@ export default function GuessInput({
       setActive((a) => Math.max(0, a - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (open && options[active] && !selected) choose(options[active])
-      else submit()
-    } else if (e.key === 'Escape') setOpen(false)
+      if (options[active]) pick(options[active])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
   }
 
+  const showList = open && !disabled && query.trim().length > 0
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        submit()
-      }}
-    >
-      <label htmlFor={`${id}-in`} className="micro mb-2 block text-muted">{label}</label>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            ref={input}
-            id={`${id}-in`}
-            role="combobox"
-            aria-expanded={open && options.length > 0}
-            aria-controls={`${id}-list`}
-            aria-autocomplete="list"
-            aria-activedescendant={open && options[active] ? `${id}-o${active}` : undefined}
-            autoComplete="off"
-            disabled={disabled}
-            value={query}
-            placeholder={disabled ? 'Case closed' : 'Search company or ticker…'}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setSelected(null)
-              setOpen(true)
-              setActive(0)
-              setError('')
-            }}
-            onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 120)}
-            onKeyDown={onKey}
-            className="h-12 w-full rounded-xl border border-line bg-obsidian/70 pl-10 pr-3 text-[15px] text-paper placeholder:text-muted/60 focus:border-market/50 focus:outline-none disabled:opacity-50"
-          />
-          <AnimatePresence>
-            {open && !disabled && options.length > 0 && (
-              <motion.ul
-                id={`${id}-list`}
-                role="listbox"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
-                className="absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-auto rounded-xl border border-line bg-surface shadow-2xl"
-              >
-                {options.map((o, i) => (
-                  <li
-                    key={o.ticker}
-                    id={`${id}-o${i}`}
-                    role="option"
-                    aria-selected={i === active}
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      choose(o)
-                    }}
-                    onMouseEnter={() => setActive(i)}
-                    className={`flex cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] ${i === active ? 'bg-white/[0.05]' : ''}`}
-                  >
-                    <span className="truncate">
-                      <span className="mr-2 font-mono text-[11px] text-market">{o.ticker}</span>
-                      {o.name}
-                    </span>
-                    <span className="shrink-0 text-[11px] text-muted">{o.sector}</span>
-                  </li>
-                ))}
-              </motion.ul>
-            )}
-          </AnimatePresence>
-        </div>
-        <button type="submit" disabled={disabled || busy || !query} className="inline-flex h-12 items-center gap-2 rounded-xl bg-market px-4 text-[13px] font-semibold text-obsidian transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">
-          {busy ? 'Checking…' : 'Guess'} <ArrowRight size={14} />
-        </button>
+    <div className="relative">
+      <label htmlFor={`${id}-in`} className="micro mb-2 flex items-center justify-between text-muted">
+        <span>{label}</span>
+        <span className="normal-case tracking-normal text-muted/70">{assets.length ? `${assets.length} Robinhood tokens` : ''}</span>
+      </label>
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+        <input
+          ref={input}
+          id={`${id}-in`}
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={`${id}-list`}
+          aria-autocomplete="list"
+          aria-activedescendant={showList && options[active] ? `${id}-o${active}` : undefined}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          disabled={disabled}
+          value={query}
+          placeholder={disabled ? 'Case closed' : busy ? 'Checking…' : 'Type a ticker or company — e.g. TSLA, Nvidia'}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={onKey}
+          className="h-[52px] w-full rounded-xl border border-line bg-obsidian/70 pl-11 pr-24 text-[15px] text-paper placeholder:text-muted/60 focus:border-market/50 focus:outline-none disabled:opacity-50"
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md border border-line px-2 py-1 font-mono text-[10px] text-muted">
+          <CornerDownLeft size={11} /> guess
+        </span>
       </div>
-      <p className="mt-2 h-4 text-[12px] text-loss" role="alert">{error}</p>
-    </form>
+
+      <AnimatePresence>
+        {showList && (
+          <motion.ul
+            ref={list}
+            id={`${id}-list`}
+            role="listbox"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[340px] overflow-auto rounded-xl border border-line bg-surface p-1 shadow-2xl"
+          >
+            {options.length === 0 ? (
+              <li className="px-3 py-3 text-[13px] text-muted">{assets.length ? `No Robinhood token matches “${query}”.` : 'Loading tokens…'}</li>
+            ) : (
+              options.map((o, i) => (
+                <li
+                  key={o.symbol}
+                  id={`${id}-o${i}`}
+                  data-i={i}
+                  role="option"
+                  aria-selected={i === active}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    pick(o)
+                  }}
+                  onMouseEnter={() => setActive(i)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] ${i === active ? 'bg-white/[0.06]' : ''}`}
+                >
+                  <TokenLogo asset={o} size={26} />
+                  <span className="w-14 shrink-0 font-mono text-[12px] font-semibold text-market">{o.symbol}</span>
+                  <span className="truncate text-paper/85">{o.name}</span>
+                  {i === active && <CornerDownLeft size={13} className="ml-auto shrink-0 text-muted" />}
+                </li>
+              ))
+            )}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

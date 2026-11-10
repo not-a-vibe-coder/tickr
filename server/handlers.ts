@@ -4,6 +4,7 @@ import { SECTOR_OF } from '../shared/universe.js'
 import type { Timeframe } from '../shared/market.js'
 import { getAssets, getCandles, getQuote, getQuotes } from './marketdata.js'
 import { verifyMessage, type Hex } from 'viem'
+import { tradeIntentMessage } from '../shared/intent.js'
 import type { ClaimResponse, ConfigPayload, GuessResponse, PuzzlePayload } from '../shared/api.js'
 import { env } from './env.js'
 import { POOL, commitmentFor, dailyIndex, launchDay, previewDay, puzzleLabel, puzzleNumber, saltFor, seasonOf, today } from './pool.js'
@@ -220,9 +221,7 @@ export async function portfolio(req: Request): Promise<Response> {
   return json({ address: a, cash: p.cash, joined: p.joined, holdings, netWorth: p.cash + holdings.reduce((s, h) => s + h.value, 0) })
 }
 
-/** The message a player signs (no gas) to authorise one trade. */
-export const tradeIntentMessage = (i: { player: string; side: string; symbol: string; amount: string; unit: string; nonce: string; expires: number }) =>
-  `Tickr demo trade\nplayer: ${i.player.toLowerCase()}\nside: ${i.side}\nsymbol: ${i.symbol}\namount: ${i.amount} ${i.unit}\nnonce: ${i.nonce}\nexpires: ${i.expires}`
+export { tradeIntentMessage }
 
 export async function trade(req: Request): Promise<Response> {
   if (!chainApi.onchainReady()) return fail(503, 'Trading is not live on this server yet')

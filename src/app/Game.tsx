@@ -274,7 +274,7 @@ function ClaimStatus({ claim, explorer, onRetry }: { claim: ClaimState; explorer
   if (claim.state === 'done')
     return (
       <p className="flex items-center gap-2 rounded-xl border border-market/30 bg-market/[0.06] px-3.5 py-3 text-[13px]">
-        <Check size={14} className="text-market" /> Streak saved on-chain.
+        <Check size={14} className="text-market" /> Streak + $TCKR points saved on-chain.
         {claim.txHash && explorer && (
           <a href={`${explorer}/tx/${claim.txHash}`} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-market hover:underline">
             View tx <ExternalLink size={12} />

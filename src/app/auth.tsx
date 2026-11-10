@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { PrivyProvider, usePrivy } from '@privy-io/react-auth'
+import { PrivyProvider, usePrivy, useSignMessage } from '@privy-io/react-auth'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { robinhoodTestnet } from '../../shared/chain'
 
@@ -11,6 +11,8 @@ export type Auth = {
   label: string | null
   login: () => void
   logout: () => void
+  /** Personal-sign a message with the player's wallet (no gas, no popup). */
+  signMessage: (message: string) => Promise<`0x${string}`>
 }
 
 const Ctx = createContext<Auth | null>(null)
@@ -45,10 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 function PrivyBridge({ children }: { children: ReactNode }) {
   const { ready, authenticated, user, login, logout } = usePrivy()
+  const { signMessage } = useSignMessage()
   const address = user?.wallet?.address ?? null
   const value = useMemo<Auth>(
-    () => ({ ready, kind: 'privy', authenticated: authenticated && Boolean(address), address, label: user?.email?.address ?? null, login, logout: () => void logout() }),
-    [ready, authenticated, address, user, login, logout],
+    () => ({
+      ready,
+      kind: 'privy',
+      authenticated: authenticated && Boolean(address),
+      address,
+      label: user?.email?.address ?? null,
+      login,
+      logout: () => void logout(),
+      signMessage: async (message) => (await signMessage({ message }, { uiOptions: { showWalletUIs: false }, address: address ?? undefined })).signature as `0x${string}`,
+    }),
+    [ready, authenticated, address, user, login, logout, signMessage],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -87,6 +99,11 @@ function GuestAuth({ children }: { children: ReactNode }) {
           /* ignore */
         }
         setAddress(null)
+      },
+      signMessage: async (message) => {
+        const k = localStorage.getItem(GUEST_KEY) as `0x${string}` | null
+        if (!k) throw new Error('Not signed in')
+        return privateKeyToAccount(k).signMessage({ message })
       },
     }),
     [address],

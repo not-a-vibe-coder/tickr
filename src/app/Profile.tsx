@@ -1,24 +1,27 @@
 import { Link } from 'react-router-dom'
-import { Check, ExternalLink, Flame, Lock } from 'lucide-react'
+import { Check, Coins, ExternalLink, Flame, Lock } from 'lucide-react'
 import type { ConfigPayload, PlayerPayload } from '../../shared/api'
 import { useAuth } from './auth'
 import { CopyButton } from './Game'
+import { fmtNum, fmtPx, usePortfolio } from './Trade'
 
 export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: PlayerPayload | null }) {
   const auth = useAuth()
+  const [portfolio] = usePortfolio(auth.address, Boolean(cfg.contract))
   if (!auth.address)
     return (
       <div className="panel mx-auto max-w-lg rounded-[28px] p-10 text-center">
         <h1 className="font-display text-3xl font-semibold uppercase">Your case file</h1>
-        <p className="mt-3 text-paper/65">Sign in to track your streak and rewards.</p>
+        <p className="mt-3 text-paper/65">Sign in to get 10,000 $TCKR, track your streak and trade.</p>
         <button onClick={auth.login} className="mt-6 rounded-full bg-market px-6 py-3 text-[13px] font-semibold text-obsidian">{auth.kind === 'privy' ? 'Sign in with email' : 'Create guest wallet'}</button>
       </div>
     )
 
-  const stat = (label: string, value: React.ReactNode) => (
+  const stat = (label: string, value: React.ReactNode, sub?: string) => (
     <div className="panel rounded-3xl p-5">
       <p className="micro text-muted">{label}</p>
-      <p className="mt-3 font-display text-4xl font-semibold tracking-tight">{value}</p>
+      <p className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{value}</p>
+      {sub && <p className="mt-1 text-[12px] text-muted">{sub}</p>}
     </div>
   )
 
@@ -42,38 +45,49 @@ export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: P
       {!cfg.contract && <p className="mb-6 rounded-xl border border-amber/30 p-4 text-[14px] text-amber">On-chain stats appear once the Tickr contract is deployed.</p>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stat('Current streak', <span className="flex items-center gap-2 text-amber"><Flame size={28} />{player?.streak ?? 0}</span>)}
-        {stat('Best streak', player?.bestStreak ?? 0)}
-        {stat('Solves', player?.solves ?? 0)}
-        {stat('Avg guesses', player?.avgGuesses ?? '—')}
+        {stat('Net worth', <span className="flex items-center gap-2 text-market"><Coins size={24} />{portfolio ? fmtNum(portfolio.netWorth, 0) : '—'}</span>, 'TCKR · cash + positions')}
+        {stat('Cash', portfolio ? fmtNum(portfolio.cash, 0) : player ? fmtNum(player.points, 0) : '—', 'TCKR available')}
+        {stat('Current streak', <span className="flex items-center gap-2 text-amber"><Flame size={24} />{player?.streak ?? 0}</span>, `Best ${player?.bestStreak ?? 0}`)}
+        {stat('Daily solves', player?.solves ?? 0, player?.avgGuesses ? `Avg ${player.avgGuesses} guesses` : undefined)}
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1.3fr]">
         <section className="panel rounded-3xl p-6" aria-labelledby="ms">
-          <h2 id="ms" className="micro text-muted">Streak milestones</h2>
-          <ol className="mt-5 space-y-2">
-            {(player?.rewards.length ? player.rewards : []).map((r) => (
-              <li key={r.streak} className={`flex items-center gap-4 rounded-2xl border px-4 py-3.5 ${r.earned ? 'border-market/40 bg-market/[0.05]' : 'border-line'}`}>
-                <span className={`grid h-9 w-9 place-items-center rounded-full ${r.earned ? 'bg-market text-obsidian' : 'bg-white/[0.05] text-muted'}`}>{r.earned ? <Check size={16} /> : <Lock size={14} />}</span>
-                <span className="font-display text-xl font-semibold">Day {r.streak}</span>
-                <span className="ml-auto font-mono text-[13px] text-paper/80">{r.amount} {r.symbol}</span>
-              </li>
-            ))}
-            {!player?.rewards.length && <p className="text-[14px] text-muted">No milestone rewards configured yet.</p>}
-          </ol>
-          <p className="mt-4 text-[12px] text-muted">Rewards are testnet stock tokens with no monetary value, paid automatically by the contract when your streak reaches a milestone.</p>
-        </section>
-        <section className="panel rounded-3xl p-6" aria-labelledby="bal">
-          <h2 id="bal" className="micro text-muted">Test token balances</h2>
-          <ul className="mt-5 divide-y divide-line">
-            {player?.balances.map((b) => (
-              <li key={b.token} className="flex items-center justify-between py-3">
-                <a href={`${cfg.explorer}/token/${b.token}`} target="_blank" rel="noreferrer" className="font-display text-lg font-semibold hover:text-market">t{b.symbol}</a>
-                <span className="font-mono text-[14px]">{Number(b.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-              </li>
-            ))}
+          <h2 id="ms" className="micro text-muted">How you earn $TCKR</h2>
+          <ul className="mt-4 space-y-1.5 text-[13.5px] text-paper/80">
+            <li>• Starter balance: <b>10,000</b></li>
+            <li>• Daily solve: <b>600</b> in 1 guess → <b>100</b> in 6</li>
+            <li>• Streak bonus: <b>+20</b> per streak day (max 600)</li>
+            <li>• Grow it by trading well</li>
           </ul>
-          {!player?.balances.length && <p className="text-[14px] text-muted">Nothing yet.</p>}
+          <ol className="mt-5 space-y-2">
+            {(player?.milestones ?? [3, 7, 14, 30].map((s) => ({ streak: s, bonus: 0, earned: false }))).map((m) => (
+              <li key={m.streak} className={`flex items-center gap-4 rounded-2xl border px-4 py-3 ${m.earned ? 'border-market/40 bg-market/[0.05]' : 'border-line'}`}>
+                <span className={`grid h-8 w-8 place-items-center rounded-full ${m.earned ? 'bg-market text-obsidian' : 'bg-white/[0.05] text-muted'}`}>{m.earned ? <Check size={15} /> : <Lock size={13} />}</span>
+                <span className="font-display text-lg font-semibold">Day {m.streak} streak</span>
+                <span className="ml-auto font-mono text-[13px] text-market">{m.bonus ? `+${fmtNum(m.bonus, 0)}` : '—'} TCKR</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <section className="panel rounded-3xl p-6" aria-labelledby="pf">
+          <div className="flex items-center justify-between">
+            <h2 id="pf" className="micro text-muted">Portfolio</h2>
+            <Link to="/trade" className="text-[13px] text-market hover:underline">Open terminal →</Link>
+          </div>
+          {!portfolio?.holdings.length ? (
+            <p className="mt-6 text-[14px] text-muted">No positions yet. Your 10,000 TCKR is waiting in the trade terminal.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-line">
+              {portfolio.holdings.map((h) => (
+                <li key={h.symbol} className="flex items-center justify-between gap-3 py-3 text-[14px]">
+                  <span className="font-mono font-semibold">{h.symbol}</span>
+                  <span className="font-mono text-muted">{fmtNum(h.qty, 4)} @ {h.price != null ? fmtPx(h.price) : '—'}</span>
+                  <span className={`ml-auto font-mono ${h.pnl >= 0 ? 'text-market' : 'text-loss'}`}>{h.pnl >= 0 ? '+' : ''}{fmtNum(h.pnl)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <Link to="/play" className="mt-6 inline-block rounded-full bg-market px-5 py-2.5 text-[13px] font-semibold text-obsidian">Play today's case</Link>
         </section>
       </div>

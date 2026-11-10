@@ -1,4 +1,5 @@
 import type { ClaimResponse, ConfigPayload, GuessResponse, LeaderboardRow, PlayerPayload, PuzzlePayload } from '../../shared/api'
+import type { Candle, PortfolioPayload, Quote, Timeframe } from '../../shared/market'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, { ...init, headers: { 'content-type': 'application/json', ...init?.headers } })
@@ -17,4 +18,8 @@ export const api = {
   claim: (session: string) => req<ClaimResponse>('/api/claim', { method: 'POST', body: JSON.stringify({ session }) }),
   player: (address: string) => req<PlayerPayload>(`/api/player?address=${address}`),
   leaderboard: () => req<{ rows: LeaderboardRow[] }>('/api/leaderboard'),
+  quotes: (symbols: string[]) => req<{ quotes: Quote[] }>(`/api/market/quotes?symbols=${symbols.join(',')}`),
+  candles: (symbol: string, tf: Timeframe) => req<{ candles: Candle[] }>(`/api/market/candles?symbol=${encodeURIComponent(symbol)}&tf=${tf}`),
+  portfolio: (address: string) => req<PortfolioPayload>(`/api/portfolio?address=${address}`),
+  trade: (body: Record<string, unknown>) => req<{ txHash: string; symbol: string; side: string; qty: number; price: number; value: number }>('/api/trade', { method: 'POST', body: JSON.stringify(body) }),
 }
