@@ -6,6 +6,11 @@
 - **$TCKR points:** every player starts with 10,000. Solves (100–600), streak bonuses and milestones (3, 7, 14 and 30 days) add more. Points are non-transferable and have no monetary value on testnet. A $TCKR token is planned for mainnet, with tokenomics still to be decided.
 - **Demo trading (`/trade`):** trade any Robinhood Stock Token with $TCKR at live prices (buys fill at the ask, sells at the bid). Every trade and position lives on-chain.
 - **Leaderboards (`/leaderboard`):** rank by net worth (cash + positions at live prices) or by streak.
+- **Live analytics:**
+  - How many people are online, and how many are watching each chart.
+  - Holders, trade count and TCKR volume per token, plus the top holders.
+  - A live on-chain trade feed.
+- **Public portfolios (`/u/<address>`):** anyone can view a player's holdings, P&L, rank and trades. The leaderboard and the trade feed link to them.
 - **Also included:** `/play/practice` for unlimited past charts, `/me` for your case file and portfolio, and `/duel` for challenge links.
 
 ## How it works
@@ -86,6 +91,7 @@ Import the repo. Set the variables from `.env.example`:
 | `CRON_SECRET` | Any random string |
 | `VITE_PRIVY_APP_ID` | From step 3 |
 | `TICKR_RPC_URL` | Optional. An Alchemy URL is more reliable than the public RPC. |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Live presence ("N online", "N watching"). In Vercel, go to **Storage → Upstash for Redis** (free tier) and connect it; that sets both variables. Without them, counts are tracked per serverless instance only. |
 
 Every build runs `scripts/fetch-market-data.ts`, which pulls real daily history for the 49 puzzles in the pool (Yahoo, then Stooq, then GitHub mirrors as fallbacks). The build log prints `market data: N/49 puzzles ready`.
 

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDownRight, ArrowUpRight, Check, ExternalLink, Loader2, Search, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Activity as ActivityIcon, ArrowDownRight, ArrowUpRight, BarChart3, Check, ExternalLink, Eye, Loader2, Search, Users, X } from 'lucide-react'
+import { TradeTape, useActivity, type TradeRow } from './Activity'
+import { useWatch } from './presence'
+import { shortAddr } from './auth'
 import CandleChart from './CandleChart'
 import { api } from './api'
 import { useAuth } from './auth'
@@ -62,6 +66,10 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
   const [candlesData] = usePoll(() => api.candles(symbol, tf), tf === '1D' ? 30_000 : 120_000, [symbol, tf])
   const q = quotes.get(symbol) ?? null
   const holding = portfolio?.holdings.find((h) => h.symbol === symbol) ?? null
+  const watching = useWatch(`chart:${symbol}`)
+  const [tokenStats] = usePoll<TokenStats>(() => fetch(`/api/token?symbol=${symbol}`).then((r) => r.json()), 8_000, [symbol])
+  const [globalStats] = usePoll<{ tokens: { symbol: string; holders: number }[] }>(() => fetch('/api/stats').then((r) => r.json()), 20_000, [])
+  const holdersOf = useMemo(() => new Map((globalStats?.tokens ?? []).map((t) => [t.symbol, t.holders])), [globalStats])
 
   return (
     <>
@@ -106,7 +114,14 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
                   <button onClick={() => setSymbol(a.symbol)} className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${a.symbol === symbol ? 'bg-white/[0.07]' : 'hover:bg-white/[0.03]'}`}>
                     <TokenLogo asset={a} size={28} />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-mono text-[12.5px] font-semibold">{a.symbol}</span>
+                      <span className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold">
+                        {a.symbol}
+                        {holdersOf.get(a.symbol) ? (
+                          <span className="flex items-center gap-0.5 text-[10px] font-normal text-muted" title="Holders">
+                            <Users size={10} /> {holdersOf.get(a.symbol)}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="block truncate text-[11px] text-muted">{a.name}</span>
                     </span>
                     <span className="text-right font-mono text-[11.5px]">
@@ -145,6 +160,7 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
                 ))}
               </div>
             </div>
+            <TokenStatsStrip watching={Math.max(watching, tokenStats?.watching ?? 0)} stats={tokenStats} />
             <div className="mt-3">
               <PriceChart candles={candlesData?.candles ?? null} tf={tf} live={q?.price ?? null} symbol={symbol} />
             </div>
@@ -157,6 +173,9 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
           <div className="hidden lg:block">
             <Positions portfolio={portfolio} onPick={setSymbol} />
           </div>
+          <div className="hidden lg:block">
+            <MarketPulse symbol={symbol} stats={tokenStats} onPick={setSymbol} />
+          </div>
         </section>
 
         {/* order ticket */}
@@ -164,6 +183,9 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
           <OrderTicket cfg={cfg} asset={asset} quote={q} holdingQty={holding?.qty ?? 0} cash={portfolio?.cash ?? null} onFilled={refreshPortfolio} />
           <div className="mt-3 lg:hidden">
             <Positions portfolio={portfolio} onPick={setSymbol} />
+          </div>
+          <div className="mt-3 lg:hidden">
+            <MarketPulse symbol={symbol} stats={tokenStats} onPick={setSymbol} />
           </div>
         </div>
       </div>
@@ -379,6 +401,69 @@ function OrderTicket({ cfg, asset, quote, holdingQty, cash, onFilled }: { cfg: C
         )}
       </AnimatePresence>
       <p className="mt-4 text-[11px] leading-relaxed text-muted">Demo trading with $TCKR points at live Robinhood Stock Token prices (buys fill at ask, sells at bid). Points have no monetary value.</p>
+    </div>
+  )
+}
+
+type TokenStats = {
+  symbol: string
+  watching: number
+  holders: number
+  trades: number
+  volume: number
+  topHolders: { address: string; qty: number }[]
+  recent: TradeRow[]
+}
+
+function TokenStatsStrip({ watching, stats }: { watching: number; stats: TokenStats | null }) {
+  const item = (icon: React.ReactNode, value: React.ReactNode, label: string) => (
+    <span className="flex items-center gap-1.5" title={label}>
+      <span className="text-muted">{icon}</span>
+      <span className="font-mono text-paper/90">{value}</span>
+      <span className="text-muted">{label}</span>
+    </span>
+  )
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 border-y border-line py-2 text-[12px]">
+      {item(<Eye size={13} />, <span className="flex items-center gap-1.5">{watching > 0 && <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-market" />}{watching}</span>, 'watching')}
+      {item(<Users size={13} />, stats?.holders ?? '—', 'holders')}
+      {item(<ActivityIcon size={13} />, stats?.trades ?? '—', 'trades')}
+      {item(<BarChart3 size={13} />, stats ? fmtNum(stats.volume, 0) : '—', 'TCKR volume')}
+    </div>
+  )
+}
+
+function MarketPulse({ symbol, stats, onPick }: { symbol: string; stats: TokenStats | null; onPick: (s: string) => void }) {
+  const [tab, setTab] = useState<'all' | 'token' | 'holders'>('all')
+  const all = useActivity()
+  return (
+    <div className="panel overflow-hidden rounded-3xl">
+      <div className="flex flex-wrap items-center gap-1 border-b border-line px-3 py-2" role="tablist" aria-label="Market activity">
+        {([['all', 'Live trades'], ['token', `${symbol} trades`], ['holders', 'Top holders']] as const).map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3 py-1 text-[12px] ${tab === k ? 'bg-paper text-obsidian' : 'text-paper/60 hover:text-paper'}`}>
+            {l}
+          </button>
+        ))}
+        {tab === 'all' && <span className="micro ml-auto flex items-center gap-1.5 text-market"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-market" /> On-chain</span>}
+      </div>
+      <div className="max-h-[320px] overflow-y-auto">
+        {tab === 'all' && <TradeTape trades={all.slice(0, 30)} onPick={onPick} empty="No trades yet. Be the first." />}
+        {tab === 'token' && <TradeTape trades={stats?.recent ?? []} showSymbol={false} empty={`No ${symbol} trades yet.`} />}
+        {tab === 'holders' &&
+          (stats?.topHolders.length ? (
+            <ol className="divide-y divide-line">
+              {stats.topHolders.map((h, i) => (
+                <li key={h.address} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="w-5 font-mono text-[11px] text-muted">{i + 1}</span>
+                  <Link to={`/u/${h.address}`} className="flex-1 font-mono hover:text-market">{shortAddr(h.address)}</Link>
+                  <span className="font-mono">{fmtNum(h.qty, 4)} <span className="text-[10px] text-muted">{symbol}</span></span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="px-4 py-5 text-[13px] text-muted">Nobody holds {symbol} yet.</p>
+          ))}
+      </div>
     </div>
   )
 }

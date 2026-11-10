@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, X } from 'lucide-react'
 import { Wordmark } from './Logo'
 import { useCountdown } from '../hooks/useCountdown'
+import { OnlinePill } from '../app/presence'
 
 const LINKS = [
   { href: '#how', label: 'How to Play' },
@@ -55,7 +56,8 @@ export default function Navigation() {
         </ul>
 
         <div className="flex items-center gap-3">
-          <SeasonBadge className="hidden md:inline-flex" />
+          <OnlinePill className="hidden md:inline-flex" />
+          <SeasonBadge className="hidden xl:inline-flex" />
           <span className="micro hidden items-center gap-2 rounded-full border border-line px-3 py-1.5 text-paper/80 sm:inline-flex" aria-label={`Next puzzle in ${label}`}>
             <span className="text-muted">Next chart</span>
             <span className="tabular-nums text-market">{label}</span>

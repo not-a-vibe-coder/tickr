@@ -1,4 +1,5 @@
 import Navigation from './components/Navigation'
+import { PresenceProvider } from './app/presence'
 import Hero from './components/Hero'
 import GuessSequence from './components/GuessSequence'
 import ClueReveal from './components/ClueReveal'
@@ -11,6 +12,7 @@ import Footer from './components/Footer'
 
 export default function Landing() {
   return (
+    <PresenceProvider>
     <div className="grain">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-market focus:px-4 focus:py-2 focus:text-obsidian">
         Skip to content
@@ -28,5 +30,6 @@ export default function Landing() {
       </main>
       <Footer />
     </div>
+    </PresenceProvider>
   )
 }

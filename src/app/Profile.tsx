@@ -33,7 +33,8 @@ export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: P
           <h1 className="display text-[13vw] sm:text-6xl">Case file<span className="text-market">.</span></h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <CopyButton text={auth.address} label="Copy address" />
+          <Link to={`/u/${auth.address}`} className="inline-flex items-center gap-2 rounded-full bg-market px-5 py-3 text-[13px] font-semibold text-obsidian hover:bg-paper">Public portfolio</Link>
+          <CopyButton text={`${location.origin}/u/${auth.address}`} label="Share portfolio" />
           {cfg.explorer && (
             <a href={`${cfg.explorer}/address/${auth.address}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-3 text-[13px] hover:border-paper/40">
               Explorer <ExternalLink size={13} />

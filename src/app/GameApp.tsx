@@ -8,6 +8,8 @@ import Leaderboard from './Leaderboard'
 import Profile from './Profile'
 import Duel, { parseDuel } from './Duel'
 import Trade, { fmtNum } from './Trade'
+import PublicProfile from './PublicProfile'
+import { OnlinePill, PresenceProvider } from './presence'
 import { AuthProvider, shortAddr, useAuth } from './auth'
 import { useConfig, useCountdownTo } from './useConfig'
 import { api } from './api'
@@ -16,7 +18,9 @@ import type { ConfigPayload, PlayerPayload } from '../../shared/api'
 export default function GameApp() {
   return (
     <AuthProvider>
-      <Shell />
+      <PresenceProvider>
+        <Shell />
+      </PresenceProvider>
     </AuthProvider>
   )
 }
@@ -65,7 +69,8 @@ function Shell() {
             {tab('/leaderboard', 'Leaderboard')}
           </nav>
           <div className="flex items-center gap-2">
-            <span className="micro hidden rounded-full border border-line px-3 py-1.5 text-muted lg:inline">Next <span className="tabular-nums text-market">{countdown}</span></span>
+            <OnlinePill className="hidden sm:inline-flex" />
+            <span className="micro hidden rounded-full border border-line px-3 py-1.5 text-muted xl:inline">Next <span className="tabular-nums text-market">{countdown}</span></span>
             {player && (
               <Link to="/me" className="flex items-center gap-3 rounded-full border border-line px-3 py-1.5 font-mono text-[12px]" title="Streak and $TCKR points">
                 <span className="flex items-center gap-1 text-amber"><Flame size={13} /> {player.streak}</span>
@@ -106,6 +111,7 @@ function Shell() {
             <Route path="/trade" element={<Trade cfg={cfg} />} />
             <Route path="/leaderboard" element={<Leaderboard cfg={cfg} />} />
             <Route path="/me" element={<Profile cfg={cfg} player={player} />} />
+            <Route path="/u/:address" element={<PublicProfile cfg={cfg} />} />
             <Route path="/duel" element={<Duel cfg={cfg} />} />
             <Route path="*" element={<Navigate to="/play" replace />} />
           </Routes>
