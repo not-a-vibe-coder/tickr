@@ -7,10 +7,10 @@ import { gsap } from '../lib/gsap'
 
 const MILESTONES = [
   { day: 1, label: 'First solve', token: null },
-  { day: 3, label: 'Warm streak', token: 'tTSLA' },
-  { day: 7, label: 'One week', token: 'tAMZN' },
-  { day: 14, label: 'Fortnight', token: 'tPLTR' },
-  { day: 30, label: 'Market mind', token: 'tAMD' },
+  { day: 3, label: 'Warm streak', token: '+500' },
+  { day: 7, label: 'One week', token: '+1.5K' },
+  { day: 14, label: 'Fortnight', token: '+4K' },
+  { day: 30, label: 'Market mind', token: '+10K' },
 ]
 
 function Coin({ ticker, size = 112, delay = 0 }: { ticker: string; size?: number; delay?: number }) {
@@ -28,7 +28,7 @@ function Coin({ ticker, size = 112, delay = 0 }: { ticker: string; size?: number
           <div className="absolute inset-[7px] rounded-full border border-dashed border-market/25" />
           <div className="text-center">
             <span className="block font-display text-[15px] font-semibold tracking-tight text-paper">{ticker}</span>
-            <span className="micro mt-0.5 block !text-[7.5px] text-market">Test token</span>
+            <span className="micro mt-0.5 block !text-[7.5px] text-market">$TCKR</span>
           </div>
           <div className="absolute inset-0 rounded-full bg-[linear-gradient(115deg,transparent_35%,rgba(255,255,255,0.10)_45%,transparent_55%)]" />
         </div>
@@ -86,7 +86,7 @@ export default function Rewards() {
             <SplitHeadline className="rw-head text-[13vw] sm:text-[10vw] lg:text-[7vw] 2xl:text-[112px]" id="rw-title" lines={['Come back', <>tomorrow<span className="text-market">.</span></>]} />
           </div>
           <p className="rw-fade max-w-sm text-[17px] leading-relaxed text-paper/70 lg:pb-3">
-            Build your streak. Earn rewards. Keep your market instincts sharp.
+            Build your streak. Stack $TCKR. Trade it at live prices and climb the net-worth board.
           </p>
         </div>
 
@@ -114,7 +114,7 @@ export default function Rewards() {
             ))}
           </ol>
           <p className="micro mt-12 text-center !text-[9.5px] text-muted/70">
-            <span className="normal-case">tTSLA · tAMZN · tPLTR · tAMD</span> are testnet stock tokens shown as examples. Milestones and amounts may change.
+            Streak bonuses in $TCKR points, on top of 100–600 per solve. Amounts may change before the $TCKR tokenomics are final.
           </p>
         </div>
 
@@ -129,8 +129,10 @@ export default function Rewards() {
             <h3 className="mt-6 font-display text-4xl font-semibold uppercase tracking-tight">Season 0</h3>
             <ul className="mt-6 space-y-3 text-[15px] text-paper/80">
               {[
-                'Rewards are testnet stock tokens — they have no monetary value',
-                'Daily puzzle, streaks, practice mode, duels and leaderboard',
+                'Start with 10,000 $TCKR points; earn more from dailies and streaks',
+                'Demo-trade any Robinhood Stock Token at live prices — positions settle on-chain',
+                'Net-worth and streak leaderboards, practice mode and duels',
+                '$TCKR points have no monetary value during testnet',
                 'Sign in with email. No broker, no seed phrase',
                 'Preview season runs until launch on 20 December; preview streaks reset at launch',
                 'A practice network: balances may be reset',
@@ -147,8 +149,8 @@ export default function Rewards() {
             <h3 className="mt-6 font-display text-4xl font-semibold uppercase tracking-tight text-paper/85">Mainnet</h3>
             <ul className="mt-6 space-y-3 text-[15px] text-paper/60">
               {[
-                'Streak rewards funded by sponsored prize pools',
-                'Rewards in stock tokens where available and permitted',
+                '$TCKR launches as a token on Robinhood Chain mainnet',
+                'Tokenomics and how points carry over: to be announced',
                 'Eligibility, amounts and timing to be announced',
                 'Nothing is guaranteed — Tickr is a game, not an investment',
               ].map((t) => (

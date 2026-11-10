@@ -49,7 +49,7 @@ export default function Footer() {
 
         <div className="mt-6 flex flex-col gap-4 border-t border-line pt-6 text-[11.5px] leading-relaxed text-muted md:flex-row md:justify-between">
           <p className="max-w-2xl">
-            Tickr is an independent project and is not affiliated with, endorsed by or sponsored by Robinhood Markets, Inc. Season 0 runs on Robinhood Chain testnet; test tokens have no monetary value. Charts on this page are illustrative. Nothing here is investment advice.
+            Tickr is an independent project and is not affiliated with, endorsed by or sponsored by Robinhood Markets, Inc. Season 0 runs on Robinhood Chain testnet; $TCKR points have no monetary value and trading is demo-only. Charts on this page are illustrative. Nothing here is investment advice.
           </p>
           <p className="shrink-0">© {new Date().getFullYear()} Tickr · Season 0</p>
         </div>

@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { AtSign, Building2, Globe2, Repeat, Sparkles, Swords, Trophy } from 'lucide-react'
+import { AtSign, Building2, CandlestickChart, Globe2, Repeat, Swords, Trophy } from 'lucide-react'
 import Globe from './Globe'
 import SplitHeadline from './SplitHeadline'
 import { useGsap } from '../hooks/useGsap'
@@ -8,11 +8,11 @@ import { gsap } from '../lib/gsap'
 const FEATURES = [
   { icon: AtSign, title: 'Email-only sign-in', body: 'No wallet setup or seed phrase.' },
   { icon: Building2, title: 'No broker required', body: 'No brokerage or bank account needed.' },
-  { icon: Sparkles, title: 'No crypto experience', body: 'If you can read a chart, you can play.' },
+  { icon: CandlestickChart, title: 'Demo trading, live prices', body: 'Trade any Robinhood Stock Token with $TCKR.' },
   { icon: Globe2, title: 'One global puzzle', body: 'Same chart, everywhere, at 00:00 UTC.' },
   { icon: Repeat, title: 'Unlimited practice', body: 'Past cases on demand, no streak at stake.' },
   { icon: Swords, title: 'Friend duels', body: 'Same chart, head to head.' },
-  { icon: Trophy, title: 'Worldwide leaderboards', body: 'Longest streaks. Fewest guesses.' },
+  { icon: Trophy, title: 'Worldwide leaderboards', body: 'Biggest net worth. Longest streaks.' },
 ]
 
 /** SCENE 06 — built for everyone. */

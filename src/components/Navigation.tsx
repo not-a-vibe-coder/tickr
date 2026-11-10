@@ -8,7 +8,7 @@ const LINKS = [
   { href: '#how', label: 'How to Play' },
   { href: '#rewards', label: 'Rewards' },
   { href: '#season', label: 'Season 0' },
-  { href: '#leaderboard', label: 'Leaderboard' },
+  { href: '/trade', label: 'Trade' },
 ]
 
 export function SeasonBadge({ className = '' }: { className?: string }) {

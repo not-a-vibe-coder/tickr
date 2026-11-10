@@ -41,7 +41,7 @@ export default function FinalCTA() {
           </a>
         </div>
         <p className="fc-fade mx-auto mt-10 max-w-lg text-[12px] leading-relaxed text-muted">
-          Preview live now · Season 0 launches 20 December on Robinhood Chain testnet. Rewards are test tokens with no monetary value. Mainnet rewards are planned, not guaranteed.
+          Preview live now · Season 0 launches 20 December on Robinhood Chain testnet. $TCKR points have no monetary value; the $TCKR token is planned for mainnet, details to come.
         </p>
       </div>
     </section>
