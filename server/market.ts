@@ -3,14 +3,17 @@ import { fetchSeries, type Series } from './sources.js'
 import { POOL } from './pool.js'
 
 /** Price data for pool entries: prebuilt file first, then live fetch (cached per instance). */
-const FILE = new URL('./generated/market.json', import.meta.url)
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+const CANDIDATES = [fileURLToPath(new URL('./generated/market.json', import.meta.url)), join(process.cwd(), 'server/generated/market.json')]
 let prebuilt: Record<string, Series> | null = null
 const live = new Map<string, Series | null>()
 
 function loadPrebuilt() {
   if (prebuilt) return prebuilt
   try {
-    prebuilt = existsSync(FILE) ? (JSON.parse(readFileSync(FILE, 'utf8')) as Record<string, Series>) : {}
+    const file = CANDIDATES.find((f) => existsSync(f))
+    prebuilt = file ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, Series>) : {}
   } catch {
     prebuilt = {}
   }

@@ -40,15 +40,15 @@ export function ShareButton({ text, className = '' }: { text: string; className?
   )
 }
 
-export default function Scorecard({ puzzle, results, solved, streak }: { puzzle: number; results: GuessResult[]; solved: boolean; streak: number }) {
+export default function Scorecard({ puzzle, results, solved, streak, hideStreak, label }: { puzzle: number; results: GuessResult[]; solved: boolean; streak: number; hideStreak?: boolean; label?: string }) {
   return (
     <div className="rounded-2xl border border-line bg-obsidian/70 p-5 text-center">
-      <p className="micro text-muted">Tickr #{String(puzzle).padStart(3, '0')}</p>
+      <p className="micro text-muted">{label ?? `Tickr #${String(puzzle).padStart(3, '0')}`}</p>
       <p className="mt-2 font-display text-4xl font-semibold tracking-tight">{solved ? results.length : 'X'}/6</p>
       <p className="mt-3 text-2xl tracking-[0.2em]" aria-label={results.map((r) => RESULT_META[r].label).join(', ')}>
         {results.map((r) => RESULT_META[r].emoji).join('')}
       </p>
-      <p className="micro mt-3 text-amber">🔥 Streak {streak}</p>
+      {!hideStreak && streak > 0 && <p className="micro mt-3 text-amber">🔥 Streak {streak}</p>}
     </div>
   )
 }

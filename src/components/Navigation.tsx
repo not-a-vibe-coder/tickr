@@ -61,7 +61,7 @@ export default function Navigation() {
             <span className="tabular-nums text-market">{label}</span>
           </span>
           <a
-            href="#play"
+            href="/play"
             className="hidden rounded-full bg-paper px-4 py-2 text-[13px] font-medium text-obsidian transition hover:bg-market sm:inline-block"
           >
             Play
@@ -104,7 +104,7 @@ export default function Navigation() {
             </ul>
             <div className="mt-6 flex items-center justify-between">
               <SeasonBadge />
-              <a href="#play" onClick={() => setOpen(false)} className="rounded-full bg-market px-5 py-2.5 text-sm font-medium text-obsidian">
+              <a href="/play" onClick={() => setOpen(false)} className="rounded-full bg-market px-5 py-2.5 text-sm font-medium text-obsidian">
                 Play now
               </a>
             </div>

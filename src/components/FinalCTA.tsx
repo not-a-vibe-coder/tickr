@@ -32,7 +32,7 @@ export default function FinalCTA() {
         <SplitHeadline id="fc-title" className="fc-head mt-8 text-[12vw] sm:text-[10vw] lg:text-[7.4vw] 2xl:text-[116px]" wordClassName="text-gradient" lines={['Think you know', <>the market<span className="text-market">?</span></>]} />
         <p className="fc-fade mx-auto mt-7 max-w-md text-[18px] leading-relaxed text-paper/70">One chart. Six guesses. A new mystery every day.</p>
         <div className="fc-fade mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a href="#play" className="group inline-flex items-center gap-3 rounded-full bg-market py-4 pl-7 pr-3.5 text-[13px] font-semibold tracking-wide text-obsidian transition hover:bg-paper">
+          <a href="/play" className="group inline-flex items-center gap-3 rounded-full bg-market py-4 pl-7 pr-3.5 text-[13px] font-semibold tracking-wide text-obsidian transition hover:bg-paper">
             PLAY SEASON 0
             <span className="grid h-8 w-8 place-items-center rounded-full bg-obsidian text-market transition group-hover:translate-x-0.5"><ArrowRight size={15} /></span>
           </a>

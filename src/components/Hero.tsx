@@ -132,7 +132,7 @@ export default function Hero() {
             Every day, one mystery chart. Six chances to uncover the company behind it.
           </p>
           <div className="hero-fade mt-7 flex flex-wrap items-center gap-3">
-            <a href="#play" className="group inline-flex items-center gap-3 rounded-full bg-market py-3.5 pl-6 pr-3 text-[13px] font-semibold tracking-wide text-obsidian transition hover:bg-paper">
+            <a href="/play" className="group inline-flex items-center gap-3 rounded-full bg-market py-3.5 pl-6 pr-3 text-[13px] font-semibold tracking-wide text-obsidian transition hover:bg-paper">
               ENTER THE GAME
               <span className="grid h-7 w-7 place-items-center rounded-full bg-obsidian text-market transition group-hover:translate-x-0.5">
                 <ArrowRight size={14} />

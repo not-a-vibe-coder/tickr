@@ -127,7 +127,8 @@ export default function ProductDemo() {
             <SplitHeadline id="play-title" className="text-[12vw] sm:text-[9vw] lg:text-[5.6vw] 2xl:text-[88px]" lines={['Open the', <>case file<span className="text-market">.</span></>]} />
           </div>
           <p className="max-w-sm text-[16px] leading-relaxed text-paper/65 lg:pb-2">
-            Play a demo puzzle right here. Search a company, lock in a guess, unlock clues. Demo data runs locally — nothing here touches a wallet.
+            Play a demo puzzle right here. Search a company, lock in a guess, unlock clues. This demo runs locally — the real daily lives in the app.
+            <a href="/play" className="mt-3 block font-medium text-market hover:underline">Play today's real chart →</a>
           </p>
         </div>
 
