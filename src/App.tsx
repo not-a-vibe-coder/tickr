@@ -4,6 +4,10 @@ import GuessSequence from './components/GuessSequence'
 import ClueReveal from './components/ClueReveal'
 import CompanyReveal from './components/CompanyReveal'
 import ProductDemo from './components/ProductDemo'
+import Rewards from './components/Rewards'
+import GlobalCommunity from './components/GlobalCommunity'
+import FinalCTA from './components/FinalCTA'
+import Footer from './components/Footer'
 
 export default function App() {
   return (
@@ -18,7 +22,11 @@ export default function App() {
         <ClueReveal />
         <CompanyReveal />
         <ProductDemo />
+        <Rewards />
+        <GlobalCommunity />
+        <FinalCTA />
       </main>
+      <Footer />
     </div>
   )
 }
