@@ -116,7 +116,7 @@ export default function Hero() {
       <div className="hero-copy absolute inset-x-0 bottom-0 mx-auto flex max-w-[1440px] flex-col gap-8 px-5 pb-10 md:px-10 md:pb-14 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="hero-fade micro mb-5 flex items-center gap-3 text-muted">
-            <span className="h-px w-8 bg-market" /> Every chart has a story
+            <span className="h-px w-8 bg-market" /> Every chart has a story · Season 0 launches 20 Dec
           </p>
           <SplitHeadline
             as="h1"

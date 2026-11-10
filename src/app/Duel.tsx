@@ -18,12 +18,12 @@ export default function Duel({ cfg }: { cfg: ConfigPayload }) {
   const by = p.get('by') ?? 'A friend'
   const r = (p.get('r') ?? '').split('').map((c) => MAP[c]).filter(Boolean)
   const live = d === cfg.today
-  const no = d - cfg.launchDay + 1
+  const label = d < cfg.launchDay ? `Preview #${d - cfg.previewDay + 1}` : `#${String(d - cfg.launchDay + 1).padStart(3, '0')}`
 
   return (
     <div className="panel mx-auto max-w-xl rounded-[28px] p-8 text-center sm:p-12">
       <Swords className="mx-auto text-market" size={30} />
-      <p className="micro mt-6 text-muted">Duel · Case #{String(no).padStart(3, '0')}</p>
+      <p className="micro mt-6 text-muted">Duel · Case {label}</p>
       <h1 className="mt-3 font-display text-4xl font-semibold uppercase leading-[0.95] tracking-tight">{by} challenges you</h1>
       <p className="mt-5 text-2xl tracking-[0.2em]">{r.map((x) => ({ miss: '🟥', warm: '🟨', hit: '🟩' })[x]).join('')}</p>
       <p className="mt-2 text-paper/65">Solved in {r.length}/6. Same chart, no hints from them.</p>

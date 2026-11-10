@@ -128,7 +128,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
   if (mode === 'daily' && auth.ready && !auth.address) {
     return (
       <div className="panel grid place-items-center rounded-[28px] px-6 py-20 text-center">
-        <p className="micro text-market">Daily case #{String(cfg.puzzleNumber).padStart(3, '0')}</p>
+        <p className="micro text-market">Daily case {cfg.puzzleLabel}</p>
         <h2 className="mt-4 font-display text-4xl font-semibold uppercase tracking-tight sm:text-5xl">Sign in to play the daily</h2>
         <p className="mt-4 max-w-md text-[15px] text-paper/65">Your streak is recorded on Robinhood Chain testnet, so it needs an address. Email sign-in creates one for you. No seed phrase, no gas.</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -159,7 +159,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
   const results = g.guesses.map((x) => x.result)
   const wrong = g.guesses.filter((x) => x.result !== 'hit').length
   const share = [
-    mode === 'daily' ? scorecardText(g.puzzle.number ?? 0, results, g.status === 'won', streak).replace(/\n🔥 Streak 0/, '') : `TICKR practice · ${g.status === 'won' ? results.length : 'X'}/6\n${results.map((r) => ({ miss: '🟥', warm: '🟨', hit: '🟩' })[r]).join('')}`,
+    mode === 'daily' ? scorecardText(g.puzzle.label ?? g.puzzle.number ?? 0, results, g.status === 'won', streak).replace(/\n🔥 Streak 0/, '') : `TICKR practice · ${g.status === 'won' ? results.length : 'X'}/6\n${results.map((r) => ({ miss: '🟥', warm: '🟨', hit: '🟩' })[r]).join('')}`,
     `${location.origin}/play`,
   ].join('\n')
   const duelUrl = g.puzzle.day && auth.address ? `${location.origin}/duel?d=${g.puzzle.day}&r=${results.map((r) => r[0]).join('')}&by=${auth.address.slice(0, 6)}${auth.address.slice(-4)}` : null
@@ -178,7 +178,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
         {/* chart + clues */}
         <div className="border-b border-line p-4 sm:p-6 lg:border-b-0 lg:border-r">
           <div className="micro mb-3 flex items-center justify-between text-muted">
-            <span>{mode === 'daily' ? `Daily case #${String(g.puzzle.number).padStart(3, '0')}` : 'Practice case'}</span>
+            <span>{mode === 'daily' ? `Daily case ${g.puzzle.label ?? ''}` : 'Practice case'}</span>
             <span>{g.puzzle.points.length} trading days</span>
           </div>
           <GameChart puzzle={g.puzzle} showVolume={wrong >= 1 || done} tone={g.status === 'won' ? 'won' : g.status === 'lost' ? 'lost' : 'play'} />
@@ -241,7 +241,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
                   <p className="mt-2 font-display text-3xl font-semibold uppercase leading-[0.95] tracking-tight">{g.answer.name}</p>
                   <p className="mt-1 font-mono text-sm text-market">{g.answer.ticker} · {g.answer.year}</p>
                 </div>
-                <Scorecard puzzle={g.puzzle.number ?? 0} results={results} solved={g.status === 'won'} streak={g.claim.state === 'done' ? streak : 0} hideStreak={mode === 'practice' || g.status !== 'won'} label={mode === 'practice' ? 'Practice' : undefined} />
+                <Scorecard puzzle={g.puzzle.number ?? 0} results={results} solved={g.status === 'won'} streak={g.claim.state === 'done' ? streak : 0} hideStreak={mode === 'practice' || g.status !== 'won'} label={mode === 'practice' ? 'Practice' : g.puzzle.label ? `Tickr ${g.puzzle.label}` : undefined} />
 
                 {mode === 'daily' && g.status === 'won' && <ClaimStatus claim={g.claim} explorer={cfg.explorer} onRetry={() => void claim(g)} />}
                 {mode === 'daily' && g.status === 'lost' && <p className="text-[13px] text-paper/60">No streak today. A new chart drops in <span className="font-mono text-market">{countdown}</span>.</p>}

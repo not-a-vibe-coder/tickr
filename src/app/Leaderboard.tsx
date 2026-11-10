@@ -15,7 +15,7 @@ export default function Leaderboard({ cfg }: { cfg: ConfigPayload }) {
   return (
     <>
       <div className="mb-8">
-        <p className="micro mb-3 text-muted">Season 0 · read live from Robinhood Chain</p>
+        <p className="micro mb-3 text-muted">{cfg.season === 'preview' ? 'Preview season · resets at the 20 Dec launch' : 'Season 0'} · read live from Robinhood Chain</p>
         <h1 className="display text-[13vw] sm:text-6xl">Leaderboard<span className="text-market">.</span></h1>
       </div>
       <div className="panel overflow-hidden rounded-[28px]">

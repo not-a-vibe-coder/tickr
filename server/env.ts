@@ -9,8 +9,10 @@ export const env = {
   contract: (e('TICKR_CONTRACT') || null) as `0x${string}` | null,
   network: (e('TICKR_NETWORK') ?? 'robinhood-testnet') as 'robinhood-testnet' | 'local',
   rpcUrl: e('TICKR_RPC_URL'),
-  /** Launch day (YYYY-MM-DD, UTC) = puzzle #001. */
-  launchDate: e('TICKR_LAUNCH_DATE') ?? '2026-11-10',
+  /** Preview season starts (YYYY-MM-DD, UTC) = Preview #1. Lets judges/early players play before launch. */
+  previewDate: e('TICKR_PREVIEW_DATE') ?? '2026-11-10',
+  /** Season 0 launch (YYYY-MM-DD, UTC) = puzzle #001. */
+  launchDate: e('TICKR_LAUNCH_DATE') ?? '2026-12-20',
   /** Set to "false" to make players submit their own solve transactions. */
   relay: e('TICKR_RELAY') !== 'false',
 }

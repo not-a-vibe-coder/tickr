@@ -81,7 +81,8 @@ Import the repo. Set the variables from `.env.example`:
 | `TICKR_SECRET` | Long random string (`openssl rand -hex 32`). **Never change it after launch.** It decides the schedule. |
 | `TICKR_SIGNER_KEY` | Game wallet private key |
 | `TICKR_CONTRACT` | Deployed `TickrGame` address |
-| `TICKR_LAUNCH_DATE` | First day, e.g. `2026-11-11`. That day becomes puzzle #001. |
+| `TICKR_PREVIEW_DATE` | Preview season start, default `2026-11-10` (Preview #1) |
+| `TICKR_LAUNCH_DATE` | Season 0 launch, default `2026-12-20` (puzzle #001) |
 | `CRON_SECRET` | Any random string |
 | `VITE_PRIVY_APP_ID` | From step 3 |
 | `TICKR_RPC_URL` | Optional. An Alchemy URL is more reliable than the public RPC. |
@@ -97,6 +98,18 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<your-app>.vercel.app/api/c
 ```
 
 You can also run `npm run commit` locally with the same `TICKR_*` env vars. The schedule depends only on `TICKR_SECRET` and the date, so both paths pick identical puzzles.
+
+## Seasons: preview now, Season 0 on 20 December
+
+Before the launch date, the daily runs as a **preview season**. Puzzles are labelled "Preview #1, #2…", a banner counts down to launch, and the leaderboard is marked as resetting. From 20 December, puzzles are numbered `#001`, `#002`… automatically, with no redeploy.
+
+To give everyone a clean start at launch, reset streaks by deploying a **fresh** `TickrGame` on 20 December:
+
+1. Run the deploy from step 2 again and fund the new contract's prize pool.
+2. Update `TICKR_CONTRACT` in Vercel and redeploy.
+3. Trigger `/api/cron/commit` once.
+
+The puzzle schedule carries on uninterrupted, because it's derived from `TICKR_SECRET`, not from the contract.
 
 ## Local development
 

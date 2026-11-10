@@ -123,7 +123,7 @@ export default function Rewards() {
           <article className="rw-card panel relative overflow-hidden rounded-3xl p-7 sm:p-9">
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-market/10 blur-3xl" />
             <div className="flex items-center justify-between">
-              <span className="micro inline-flex items-center gap-2 text-market"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-market" /> Live now</span>
+              <span className="micro inline-flex items-center gap-2 text-market"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-market" /> Preview live · launches 20 Dec</span>
               <span className="micro text-muted">Robinhood Chain testnet</span>
             </div>
             <h3 className="mt-6 font-display text-4xl font-semibold uppercase tracking-tight">Season 0</h3>
@@ -132,6 +132,7 @@ export default function Rewards() {
                 'Rewards are testnet stock tokens — they have no monetary value',
                 'Daily puzzle, streaks, practice mode, duels and leaderboard',
                 'Sign in with email. No broker, no seed phrase',
+                'Preview season runs until launch on 20 December; preview streaks reset at launch',
                 'A practice network: balances may be reset',
               ].map((t) => (
                 <li key={t} className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-market" />{t}</li>

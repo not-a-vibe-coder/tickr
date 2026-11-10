@@ -8,8 +8,10 @@ export type PuzzlePayload = {
   mode: PuzzleMode
   /** Daily: epoch-day number (also the on-chain day id). Practice: null. */
   day: number | null
-  /** Human puzzle number, e.g. #003. */
+  /** Human puzzle number, e.g. 3. */
   number: number | null
+  /** Display label, e.g. "Preview #3" or "#003". Null for practice. */
+  label: string | null
   /** Price path normalised so the first close = 100. Absolute prices are hidden. */
   points: number[]
   /** 0..1 relative volume per point. */
@@ -35,7 +37,12 @@ export type ConfigPayload = {
   contract: `0x${string}` | null
   today: number
   launchDay: number
+  previewDay: number
+  season: 'preview' | 'season0'
+  /** ms timestamp of the Season 0 launch (00:00 UTC). */
+  launchAt: number
   puzzleNumber: number
+  puzzleLabel: string
   nextPuzzleAt: number
   relayer: boolean
 }

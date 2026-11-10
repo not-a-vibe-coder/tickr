@@ -2,7 +2,7 @@ import { isAddress, getAddress, type Address } from 'viem'
 import { COMPANIES, MAX_GUESSES, clueFor, companyByTicker, evaluateGuess } from '../shared/companies.js'
 import type { ClaimResponse, ConfigPayload, GuessResponse, PuzzlePayload } from '../shared/api.js'
 import { env } from './env.js'
-import { POOL, commitmentFor, dailyIndex, launchDay, puzzleNumber, saltFor, today } from './pool.js'
+import { POOL, commitmentFor, dailyIndex, launchDay, previewDay, puzzleLabel, puzzleNumber, saltFor, seasonOf, today } from './pool.js'
 import { availability, seriesFor, toPayloadSeries } from './market.js'
 import { decodeSession, encodeSession, type Session } from './session.js'
 import * as chainApi from './chain.js'
@@ -48,7 +48,11 @@ export async function config(): Promise<Response> {
     contract: env.contract,
     today: t,
     launchDay: launchDay(),
+    previewDay: previewDay(),
+    season: seasonOf(t),
+    launchAt: launchDay() * 86_400_000,
     puzzleNumber: puzzleNumber(t),
+    puzzleLabel: puzzleLabel(t),
     nextPuzzleAt: (t + 1) * 86_400_000,
     relayer: env.relay && Boolean(env.signerKey),
   }
@@ -81,6 +85,7 @@ export async function puzzle(req: Request): Promise<Response> {
     mode,
     day: mode === 'daily' ? day : null,
     number: mode === 'daily' ? puzzleNumber(day) : null,
+    label: mode === 'daily' ? puzzleLabel(day) : null,
     ...toPayloadSeries(series),
   }
   return json({ session: encodeSession(session), puzzle: payload, practiceKey: mode === 'practice' ? idx : undefined })

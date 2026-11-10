@@ -28,9 +28,14 @@ export const POOL: { ticker: string; year: number }[] = [
 const DAY_MS = 86_400_000
 export const epochDay = (ms = Date.now()) => Math.floor(ms / DAY_MS)
 export const launchDay = () => epochDay(Date.parse(`${env.launchDate}T00:00:00Z`))
+export const previewDay = () => Math.min(launchDay(), epochDay(Date.parse(`${env.previewDate}T00:00:00Z`)))
 /** TICKR_DAY_OFFSET shifts "today" — for local testing of streaks only. */
 export const today = () => epochDay() + Number(process.env.TICKR_DAY_OFFSET ?? 0)
-export const puzzleNumber = (day: number) => day - launchDay() + 1
+/** Before launch, days are "Preview #n"; from launch day on they are Season 0 "#00n". */
+export const seasonOf = (day: number) => (day < launchDay() ? ('preview' as const) : ('season0' as const))
+export const puzzleNumber = (day: number) => (seasonOf(day) === 'preview' ? day - previewDay() + 1 : day - launchDay() + 1)
+export const puzzleLabel = (day: number) =>
+  seasonOf(day) === 'preview' ? `Preview #${puzzleNumber(day)}` : `#${String(puzzleNumber(day)).padStart(3, '0')}`
 
 const hmac = (msg: string) => createHmac('sha256', env.secret).update(msg).digest()
 
@@ -50,7 +55,8 @@ function poolOrder() {
 export function dailyIndex(day: number, available: (idx: number) => boolean = () => true) {
   const list = poolOrder().filter(available)
   if (!list.length) throw new Error('No puzzle data available')
-  const k = (((day - launchDay()) % list.length) + list.length) % list.length
+  // continuous from the preview start, so the launch doesn't repeat recent puzzles
+  const k = (((day - previewDay()) % list.length) + list.length) % list.length
   return list[k]
 }
 

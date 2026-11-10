@@ -92,6 +92,7 @@ function Shell() {
         </nav>
       </header>
 
+      {cfg?.season === 'preview' && <PreviewBanner launchAt={cfg.launchAt} />}
       <main className="mx-auto max-w-[1280px] px-4 pb-20 pt-8 md:px-8 md:pt-12">
         {error && <p className="mb-6 rounded-xl border border-loss/30 p-4 text-loss">Can't reach the game server: {error}</p>}
         {cfg && (
@@ -114,6 +115,16 @@ function Shell() {
   )
 }
 
+function PreviewBanner({ launchAt }: { launchAt: number }) {
+  const days = Math.max(1, Math.ceil((launchAt - Date.now()) / 86_400_000))
+  return (
+    <div className="border-b border-market/15 bg-market/[0.05] px-4 py-2.5 text-center text-[12.5px] text-paper/80">
+      <span className="micro mr-2 text-market">Preview season</span>
+      Season 0 launches <b>20 December</b> — {days} day{days === 1 ? '' : 's'} to go. Preview streaks and leaderboard reset at launch.
+    </div>
+  )
+}
+
 function PlayPage({ cfg, mode, streak }: { cfg: ConfigPayload; mode: 'daily' | 'practice'; streak?: number }) {
   const [params] = useSearchParams()
   const duel = mode === 'daily' ? parseDuel(params, cfg.today) : undefined
@@ -121,7 +132,7 @@ function PlayPage({ cfg, mode, streak }: { cfg: ConfigPayload; mode: 'daily' | '
     <>
       <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="micro mb-3 text-muted">{mode === 'daily' ? `Puzzle #${String(cfg.puzzleNumber).padStart(3, '0')} · same chart for everyone` : 'Unlimited · no streak at stake'}</p>
+          <p className="micro mb-3 text-muted">{mode === 'daily' ? `${cfg.puzzleLabel} · same chart for everyone` : 'Unlimited · no streak at stake'}</p>
           <h1 className="display text-[13vw] sm:text-6xl">{mode === 'daily' ? <>Today's case<span className="text-market">.</span></> : <>Practice<span className="text-market">.</span></>}</h1>
         </div>
         <p className="max-w-sm text-[14px] text-paper/60">

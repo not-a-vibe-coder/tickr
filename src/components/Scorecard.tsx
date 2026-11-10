@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Check, Share2 } from 'lucide-react'
 import { RESULT_META, type GuessResult } from './ResultBadge'
 
-export function scorecardText(puzzle: number, results: GuessResult[], solved: boolean, streak: number) {
+export function scorecardText(puzzle: number | string, results: GuessResult[], solved: boolean, streak: number) {
   const grid = results.map((r) => RESULT_META[r].emoji).join('')
+  const label = typeof puzzle === 'string' ? puzzle : `#${String(puzzle).padStart(3, '0')}`
   return [
-    `TICKR #${String(puzzle).padStart(3, '0')} · ${solved ? results.length : 'X'}/6`,
+    `TICKR ${label} · ${solved ? results.length : 'X'}/6`,
     grid,
     `🔥 Streak ${streak}`,
     'Season 0 · Robinhood Chain testnet',
