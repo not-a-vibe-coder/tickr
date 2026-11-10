@@ -5,6 +5,7 @@ import type { Timeframe } from '../shared/market.js'
 import { getAssets, getCandles, getQuote, getQuotes } from './marketdata.js'
 import { verifyMessage, type Hex } from 'viem'
 import { tradeIntentMessage } from '../shared/intent.js'
+import { beat, cleanChannel, counts, presenceBackend } from './presence.js'
 import type { ClaimResponse, ConfigPayload, GuessResponse, PuzzlePayload } from '../shared/api.js'
 import { env } from './env.js'
 import { POOL, commitmentFor, dailyIndex, launchDay, previewDay, puzzleLabel, puzzleNumber, saltFor, seasonOf, today } from './pool.js'
@@ -168,9 +169,11 @@ export async function player(req: Request): Promise<Response> {
   return json(await chainApi.playerStats(a, today()))
 }
 
-let boardCache: { at: number; rows: unknown[] } | null = null
-export async function leaderboard(): Promise<Response> {
-  if (!chainApi.onchainReady()) return json({ rows: [] })
+type BoardRow = Awaited<ReturnType<typeof chainApi.allPlayers>>[number] & { cash: number; positions: number; netWorth: number }
+let boardCache: { at: number; rows: BoardRow[]; holdings: Map<string, { address: string; qty: number }[]> } | null = null
+
+/** All players with live net worth, plus who holds what. Cached ~20s per instance. */
+async function board() {
   if (!boardCache || Date.now() - boardCache.at > 20_000) {
     const players = await chainApi.allPlayers(today())
     const ports = await Promise.all(players.map((p) => chainApi.portfolioOf(p.address)))
@@ -181,9 +184,84 @@ export async function leaderboard(): Promise<Response> {
       const held = port.holdings.reduce((sum, h) => sum + h.qty * (prices.get(h.symbol) ?? h.cost / Math.max(h.qty, 1e-12)), 0)
       return { ...p, cash: port.cash, positions: port.holdings.length, netWorth: +(port.cash + held).toFixed(2) }
     })
-    boardCache = { at: Date.now(), rows: rows.sort((a, b) => b.netWorth - a.netWorth).slice(0, 100) }
+    const holdings = new Map<string, { address: string; qty: number }[]>()
+    ports.forEach((p, i) => p.holdings.forEach((h) => holdings.set(h.symbol, [...(holdings.get(h.symbol) ?? []), { address: players[i].address, qty: h.qty }])))
+    boardCache = { at: Date.now(), rows: rows.sort((a, b) => b.netWorth - a.netWorth), holdings }
   }
-  return json({ rows: boardCache.rows }, 200, { 'cache-control': 's-maxage=20, stale-while-revalidate=40' })
+  return boardCache
+}
+
+export async function leaderboard(): Promise<Response> {
+  if (!chainApi.onchainReady()) return json({ rows: [] })
+  const b = await board()
+  return json({ rows: b.rows.slice(0, 100) }, 200, { 'cache-control': 's-maxage=20, stale-while-revalidate=40' })
+}
+
+// ───────────────────────────── presence & analytics ─────────────────────────────
+
+/** Heartbeat: { sid, channels: ['site', 'chart:TSLA'] } → live counts for those channels. */
+export async function presence(req: Request): Promise<Response> {
+  if (req.method === 'GET') {
+    const chans = (new URL(req.url).searchParams.get('channels') ?? 'site').split(',').map(cleanChannel).filter(Boolean).slice(0, 60)
+    return json({ counts: await counts(chans), backend: presenceBackend })
+  }
+  const b = (await req.json().catch(() => ({}))) as { sid?: string; channels?: string[] }
+  if (!b.sid || !/^[a-z0-9-]{8,64}$/i.test(b.sid)) return fail(400, 'Bad session id')
+  const chans = ['site', ...(b.channels ?? [])].map(cleanChannel).filter(Boolean).slice(0, 4)
+  return json({ counts: await beat(b.sid, [...new Set(chans)]), backend: presenceBackend })
+}
+
+/** Global numbers for the header/landing: players, online, trades, volume, most-held tokens. */
+export async function stats(): Promise<Response> {
+  const online = (await counts(['site'])).site ?? 0
+  if (!chainApi.onchainReady()) return json({ online, players: 0, trades: 0, volume: 0, tokens: [] })
+  const [g, tokens] = await Promise.all([chainApi.globals(), chainApi.symbolStatsAll()])
+  return json(
+    { online, ...g, tokens: tokens.sort((a, b) => b.holders - a.holders || b.volume - a.volume).slice(0, 50) },
+    200,
+    { 'cache-control': 's-maxage=10, stale-while-revalidate=30' },
+  )
+}
+
+/** Everything about one token: watchers, holders, volume, top holders, latest trades. */
+export async function tokenStats(req: Request): Promise<Response> {
+  const symbol = (new URL(req.url).searchParams.get('symbol') ?? '').toUpperCase()
+  if (!symbol) return fail(400, 'symbol required')
+  const watching = (await counts([`chart:${symbol}`]))[`chart:${symbol}`] ?? 0
+  if (!chainApi.onchainReady()) return json({ symbol, watching, holders: 0, trades: 0, volume: 0, topHolders: [], recent: [] })
+  const [all, recent, b] = await Promise.all([chainApi.symbolStatsAll(), chainApi.recentTrades(64), board()])
+  const s = all.find((x) => x.symbol === symbol)
+  const topHolders = [...(b.holdings.get(symbol) ?? [])].sort((x, y) => y.qty - x.qty).slice(0, 10)
+  return json({
+    symbol,
+    watching,
+    holders: s?.holders ?? 0,
+    trades: s?.trades ?? 0,
+    volume: s?.volume ?? 0,
+    topHolders,
+    recent: recent.filter((t) => t.symbol === symbol).slice(0, 15),
+  })
+}
+
+/** Live trade feed across all players. */
+export async function activity(): Promise<Response> {
+  if (!chainApi.onchainReady()) return json({ trades: [] })
+  return json({ trades: await chainApi.recentTrades(40) }, 200, { 'cache-control': 's-maxage=3' })
+}
+
+/** Public, read-only view of any player: stats, portfolio, recent trades, rank. */
+export async function profile(req: Request): Promise<Response> {
+  const a = toAddress(new URL(req.url).searchParams.get('address'))
+  if (!a) return fail(400, 'Bad address')
+  if (!chainApi.onchainReady()) return fail(503, 'Contract not configured')
+  const [stats, trades, b, portRes] = await Promise.all([
+    chainApi.playerStats(a, today()),
+    chainApi.playerTrades(a, 25),
+    board(),
+    portfolio(new Request(`http://x/api/portfolio?address=${a}`)).then((r) => r.json()),
+  ])
+  const rank = b.rows.findIndex((r) => r.address.toLowerCase() === a.toLowerCase())
+  return json({ stats, portfolio: portRes, trades, rank: rank >= 0 ? rank + 1 : null, players: b.rows.length })
 }
 
 // ───────────────────────────── market ─────────────────────────────

@@ -113,3 +113,37 @@ export async function allPlayers(today: number) {
   }
   return rows
 }
+
+// ───────────────────────────── analytics ─────────────────────────────
+
+type RawTrade = { player: Address; isBuy: boolean; time: bigint; symbolHash: Hex; qty: bigint; price: bigint }
+const toTrade = (t: RawTrade, symbol: string) => ({
+  player: t.player,
+  symbol,
+  side: t.isBuy ? ('buy' as const) : ('sell' as const),
+  qty: fromWad(t.qty),
+  price: fromWad(t.price),
+  value: fromWad(t.qty) * fromWad(t.price),
+  time: Number(t.time) * 1000,
+})
+export type TradeRow = ReturnType<typeof toTrade>
+
+export async function recentTrades(n = 40) {
+  const [rows, syms] = await read<[RawTrade[], string[]]>('getRecentTrades', [BigInt(n)])
+  return rows.map((r, i) => toTrade(r, syms[i]))
+}
+
+export async function playerTrades(player: Address, n = 25) {
+  const [rows, syms] = await read<[RawTrade[], string[]]>('getPlayerTrades', [player, BigInt(n)])
+  return rows.map((r, i) => toTrade(r, syms[i]))
+}
+
+export async function symbolStatsAll() {
+  const [syms, stats] = await read<[string[], { holders: number; trades: number; volume: bigint }[]]>('getSymbolStats')
+  return syms.map((s, i) => ({ symbol: s, holders: stats[i].holders, trades: stats[i].trades, volume: fromWad(stats[i].volume) }))
+}
+
+export async function globals() {
+  const [players, trades, volume] = await Promise.all([read<bigint>('playerCount'), read<bigint>('tradeCount'), read<bigint>('totalVolume')])
+  return { players: Number(players), trades: Number(trades), volume: fromWad(volume) }
+}
