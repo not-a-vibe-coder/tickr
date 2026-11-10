@@ -52,12 +52,18 @@ export default function Rewards() {
       scrollTrigger: { trigger: q('.rw-head')[0], start: 'top 80%' },
     })
     gsap.from(q('.rw-fade'), { opacity: 0, y: 16, stagger: 0.1, duration: 0.8, scrollTrigger: { trigger: q('.rw-head')[0], start: 'top 75%' } })
-    // the streak line grows as you scroll; milestones light up as it reaches them
-    const tl = gsap.timeline({ scrollTrigger: { trigger: track.current, start: 'top 75%', end: 'bottom 40%', scrub: 0.6 } })
-    tl.fromTo(q('.rw-fill'), { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: MILESTONES.length })
-    MILESTONES.forEach((_, i) => {
-      tl.from(q(`.rw-m-${i} .rw-node`), { scale: 0.4, backgroundColor: 'rgba(255,255,255,0.08)', duration: 0.3 }, i * (MILESTONES.length / (MILESTONES.length - 1)) * 0.98)
-        .from(q(`.rw-m-${i} .rw-coin`), { opacity: 0, y: 40, scale: 0.7, duration: 0.6, ease: 'back.out(1.6)' }, '<')
+    const mm = gsap.matchMedia()
+    mm.add('(min-width: 768px)', () => {
+      // the streak line grows as you scroll; milestones light up as it reaches them
+      const tl = gsap.timeline({ scrollTrigger: { trigger: track.current, start: 'top 75%', end: 'bottom 40%', scrub: 0.6 } })
+      tl.fromTo(q('.rw-fill'), { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: MILESTONES.length })
+      MILESTONES.forEach((_, i) => {
+        tl.from(q(`.rw-m-${i} .rw-node`), { scale: 0.4, backgroundColor: 'rgba(255,255,255,0.08)', duration: 0.3 }, i * (MILESTONES.length / (MILESTONES.length - 1)) * 0.98)
+          .from(q(`.rw-m-${i} .rw-coin`), { opacity: 0, y: 40, scale: 0.7, duration: 0.6, ease: 'back.out(1.6)' }, '<')
+      })
+    })
+    mm.add('(max-width: 767px)', () => {
+      gsap.from(q('.rw-coin'), { opacity: 0, y: 30, scale: 0.8, stagger: 0.12, duration: 0.7, ease: 'back.out(1.6)', scrollTrigger: { trigger: track.current, start: 'top 80%' } })
     })
     gsap.from(q('.rw-card'), { opacity: 0, y: 40, stagger: 0.15, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: q('.rw-card')[0], start: 'top 85%' } })
   })

@@ -29,7 +29,10 @@ export default function CompanyReveal() {
         .from(q('.rv-phone'), { y: 160, rotate: 6, opacity: 0, duration: 1.1 }, '<')
         .to({}, { duration: 0.5 })
 
-    if (reduced) return
+    if (reduced) {
+      gsap.set(q('.rv-redact'), { autoAlpha: 0 })
+      return
+    }
     const mm = gsap.matchMedia()
     mm.add('(min-width: 1024px)', () => {
       ScrollTrigger.create({ animation: build(), trigger: pin.current, start: 'top top', end: '+=1800', pin: true, scrub: 0.8, anticipatePin: 1 })

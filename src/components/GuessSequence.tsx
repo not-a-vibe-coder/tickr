@@ -67,7 +67,7 @@ export default function GuessSequence() {
     })
     mm.add('(max-width: 1023px)', () => {
       const tl = build().pause()
-      ScrollTrigger.create({ trigger: q('.gs-board')[0], start: 'top 75%', once: true, onEnter: () => void tl.timeScale(1.4).play() })
+      ScrollTrigger.create({ trigger: pin.current, start: 'top 75%', once: true, onEnter: () => void tl.timeScale(1.4).play() })
     })
   })
 
