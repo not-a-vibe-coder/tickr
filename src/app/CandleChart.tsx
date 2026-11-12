@@ -20,8 +20,9 @@ type Props = {
   ariaLabel: string
 }
 
-const UP = '#B8F36B'
-const DOWN = '#E2716A'
+const UP = '#4f8a52'
+const DOWN = '#c0533b'
+const INK = '#16130e'
 
 /** Responsive SVG candlestick chart with volume, y-axis, crosshair and OHLC readout. */
 export default function CandleChart({ candles, labelAt, ticks, fmt, showVolume = true, live, className = '', animateKey, ariaLabel }: Props) {
@@ -117,7 +118,7 @@ export default function CandleChart({ candles, labelAt, ticks, fmt, showVolume =
               </clipPath>
             </defs>
             {yTicks.map((v) => (
-              <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,0.05)" strokeDasharray="3 6" vectorEffect="non-scaling-stroke" />
+              <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(23,36,27,0.05)" strokeDasharray="3 6" vectorEffect="non-scaling-stroke" />
             ))}
             <g clipPath={`url(#clip-${animateKey})`}>
               {candles.map((c, i) => {
@@ -129,16 +130,16 @@ export default function CandleChart({ candles, labelAt, ticks, fmt, showVolume =
                 return (
                   <g key={i} opacity={hover != null && hover !== i ? 0.75 : 1}>
                     {showVolume && c.v != null && (
-                      <rect x={i * SLOT + SLOT * 0.2} y={H - (c.v / vmax) * H * 0.16} width={SLOT * 0.6} height={(c.v / vmax) * H * 0.16} fill={col} opacity={0.22} />
+                      <rect x={i * SLOT + SLOT * 0.2} y={H - (c.v / vmax) * H * 0.16} width={SLOT * 0.6} height={(c.v / vmax) * H * 0.16} fill={col} opacity={0.35} />
                     )}
-                    <line x1={x} x2={x} y1={y(c.h)} y2={y(c.l)} stroke={col} strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                    <rect x={i * SLOT + SLOT * 0.18} y={top} width={SLOT * 0.64} height={bh} fill={up ? col : col} fillOpacity={up ? 0.9 : 0.85} />
+                    <line x1={x} x2={x} y1={y(c.h)} y2={y(c.l)} stroke={INK} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                    <rect x={i * SLOT + SLOT * 0.14} y={top} width={SLOT * 0.72} height={bh} fill={col} stroke={INK} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
                   </g>
                 )
               })}
             </g>
-            {live != null && <line x1={0} x2={W} y1={y(live)} y2={y(live)} stroke={UP} strokeDasharray="4 4" strokeWidth={1} vectorEffect="non-scaling-stroke" opacity={0.7} />}
-            {hover != null && <line x1={hover * SLOT + SLOT / 2} x2={hover * SLOT + SLOT / 2} y1={0} y2={H} stroke="rgba(243,244,237,0.3)" vectorEffect="non-scaling-stroke" />}
+            {live != null && <line x1={0} x2={W} y1={y(live)} y2={y(live)} stroke={INK} strokeDasharray="4 4" strokeWidth={1} vectorEffect="non-scaling-stroke" opacity={0.7} />}
+            {hover != null && <line x1={hover * SLOT + SLOT / 2} x2={hover * SLOT + SLOT / 2} y1={0} y2={H} stroke="rgba(23,36,27,0.3)" vectorEffect="non-scaling-stroke" />}
           </svg>
 
           {/* x ticks */}

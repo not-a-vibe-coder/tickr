@@ -3,13 +3,22 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CornerDownLeft, Search } from 'lucide-react'
 import { searchAssets, TokenLogo, useAssets } from './useAssets'
 import type { Asset } from '../../shared/market'
+import { COMPANIES } from '../../shared/companies'
 
 /**
  * Company picker over every Robinhood Stock Token.
  * Type a ticker or name → ↑/↓ to move → Enter (or click) locks the guess in. One action, no second confirm.
  */
 export default function GuessInput({ used, disabled, busy, label, onGuess }: { used: string[]; disabled?: boolean; busy?: boolean; label: string; onGuess: (ticker: string) => void }) {
-  const assets = useAssets()
+  const tokens = useAssets()
+  // Guessable = every Robinhood Stock Token plus every company in the puzzle pool.
+  // Some answers (HOOD, ABNB, KO…) aren't tokenised yet; without this they could never be guessed.
+  const assets = useMemo(() => {
+    if (!tokens.length) return tokens
+    const have = new Set(tokens.map((t) => t.symbol))
+    const extra: Asset[] = COMPANIES.filter((c) => !have.has(c.ticker)).map((c) => ({ symbol: c.ticker, name: c.name, logo: null, address: null, chainId: null }))
+    return [...tokens, ...extra]
+  }, [tokens])
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -53,7 +62,7 @@ export default function GuessInput({ used, disabled, busy, label, onGuess }: { u
     <div className="relative">
       <label htmlFor={`${id}-in`} className="micro mb-2 flex items-center justify-between text-muted">
         <span>{label}</span>
-        <span className="normal-case tracking-normal text-muted/70">{assets.length ? `${assets.length} Robinhood tokens` : ''}</span>
+        <span className="normal-case tracking-normal text-muted/70">{assets.length ? `${assets.length} companies` : ''}</span>
       </label>
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
@@ -99,7 +108,7 @@ export default function GuessInput({ used, disabled, busy, label, onGuess }: { u
             className="absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[340px] overflow-auto rounded-xl border border-line bg-surface p-1 shadow-2xl"
           >
             {options.length === 0 ? (
-              <li className="px-3 py-3 text-[13px] text-muted">{assets.length ? `No Robinhood token matches “${query}”.` : 'Loading tokens…'}</li>
+              <li className="px-3 py-3 text-[13px] text-muted">{assets.length ? `No company matches “${query}”.` : 'Loading tokens…'}</li>
             ) : (
               options.map((o, i) => (
                 <li
@@ -113,7 +122,7 @@ export default function GuessInput({ used, disabled, busy, label, onGuess }: { u
                     pick(o)
                   }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] ${i === active ? 'bg-white/[0.06]' : ''}`}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] ${i === active ? 'bg-paper/[0.06]' : ''}`}
                 >
                   <TokenLogo asset={o} size={26} />
                   <span className="w-14 shrink-0 font-mono text-[12px] font-semibold text-market">{o.symbol}</span>

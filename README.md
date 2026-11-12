@@ -16,7 +16,7 @@
 ## How it works
 
 ```
- player ──email (Privy)──▶ embedded wallet address
+ player ──connect wallet (RainbowKit)──▶ their own address (Robinhood Wallet, MetaMask, Rabby…)
    │
    ▼
  /api/puzzle ─▶ today's chart (real prices, rebased to 100; the company is never sent)
@@ -71,11 +71,31 @@ PRIVATE_KEY=0x... forge script script/Deploy.s.sol --rpc-url robinhood_testnet -
 
 You don't need a token pool: $TCKR points live inside the contract. The point amounts can be tuned with `setPointsConfig` / `setMilestoneBonus` until the tokenomics are final.
 
-### 3. Sign-in (Privy)
+### 2b. The $WIF loop (mainnet)
 
-Create an app at <https://dashboard.privy.io>, enable **Email** login, and add your Vercel domain to the allowed origins. Copy the App ID.
+The game runs on testnet, but rewards are real: `TickrWifPot` on Robinhood Chain **mainnet** holds a pot of [$WIF](https://worldisflat.fun) (`0x5173b8eA6923c2d40267890D45C46a3480954773`).
 
-Without an App ID, the app falls back to a one-click guest wallet stored in the browser. That's handy for local development.
+- **Earn:** solve the daily case and the server signs `(player, day, guesses)`; the relayer submits it and the contract pays `rewardUnit × (7 − guesses)` $WIF to the player. Total payouts per day are capped by `dailyCap`.
+- **Spend:** stuck? Pay `cluePrice` $WIF to unlock the next clue early. `burnBps` of it is burned, and the rest refills the pot for future solvers.
+
+```bash
+cd contracts
+PRIVATE_KEY=0x... WIF_TOKEN=0x5173b8eA6923c2d40267890D45C46a3480954773 \
+REWARD_UNIT=<wei> DAILY_CAP=<wei> CLUE_PRICE=<wei> BURN_BPS=2000 FUND_AMOUNT=<wei> \
+forge script script/DeployWifPot.s.sol --rpc-url https://rpc.mainnet.chain.robinhood.com --broadcast
+```
+
+Set `WIF_SIGNER_KEY` (the same key) and `WIF_CONTRACT` in Vercel. Anyone can top up the pot with `fund()`, and the owner can retune it with `setConfig()`.
+
+Demo trading follows Robinhood's [Stock Token restricted jurisdictions](https://docs.robinhood.com/rhj/restricted-jurisdictions): the trade API refuses requests from those countries (and from the US, Canada, UK and Switzerland) using Vercel's `x-vercel-ip-country` header.
+
+### 3. Sign-in (connect wallet)
+
+Players connect their own wallet with RainbowKit. Browser wallets (MetaMask, Rabby, Coinbase and any other installed extension) work out of the box. Robinhood Wallet and other mobile wallets connect by scanning a WalletConnect QR code, which needs a free project id:
+
+Create a project at <https://dashboard.reown.com> (formerly WalletConnect Cloud), add your Vercel domain to its allowed domains, and copy the Project ID into `VITE_WALLETCONNECT_PROJECT_ID`. Without it, only browser-extension wallets are offered.
+
+Players never send transactions or pay gas. They sign one message per trade, and the game server relays it.
 
 ### 4. Deploy to Vercel
 
@@ -89,7 +109,7 @@ Import the repo. Set the variables from `.env.example`:
 | `TICKR_PREVIEW_DATE` | Preview season start, default `2026-11-10` (Preview #1) |
 | `TICKR_LAUNCH_DATE` | Season 0 launch, default `2026-12-20` (puzzle #001) |
 | `CRON_SECRET` | Any random string |
-| `VITE_PRIVY_APP_ID` | From step 3 |
+| `VITE_WALLETCONNECT_PROJECT_ID` | From step 3 (Reown project id, for Robinhood Wallet and other mobile wallets) |
 | `TICKR_RPC_URL` | Optional. An Alchemy URL is more reliable than the public RPC. |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Live presence ("N online", "N watching"). In Vercel, go to **Storage → Upstash for Redis** (free tier) and connect it; that sets both variables. Without them, counts are tracked per serverless instance only. |
 

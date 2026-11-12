@@ -12,6 +12,7 @@ import { POOL, commitmentFor, dailyIndex, launchDay, previewDay, puzzleLabel, pu
 import { availability, seriesFor, toPayloadSeries } from './market.js'
 import { decodeSession, encodeSession, type Session } from './session.js'
 import * as chainApi from './chain.js'
+import * as wif from './wif.js'
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? v.toString() : v)), {
@@ -36,7 +37,7 @@ async function guessables() {
 }
 
 /** Replays a session's guesses against the answer. */
-async function replay(s: Session) {
+async function replay(s: Session, extraClues = 0) {
   const idx = idxFor(s)
   const { ticker, year } = POOL[idx]
   const answer = companyByTicker(ticker)!
@@ -48,7 +49,7 @@ async function replay(s: Session) {
   const won = guesses.some((g) => g.result === 'hit')
   const status: GuessResponse['status'] = won ? 'won' : guesses.length >= MAX_GUESSES ? 'lost' : 'playing'
   const wrong = guesses.filter((g) => g.result !== 'hit').length
-  const clues = Array.from({ length: status === 'playing' ? Math.min(5, wrong) : 5 }, (_, i) => clueFor(answer, year, i))
+  const clues = Array.from({ length: status === 'playing' ? Math.min(5, wrong + extraClues) : 5 }, (_, i) => clueFor(answer, year, i))
   return { guesses, status, clues, answer: status === 'playing' ? undefined : { ticker: answer.ticker, name: answer.name, year } }
 }
 
@@ -121,7 +122,8 @@ export async function guess(req: Request): Promise<Response> {
   if (s.guesses.includes(c.ticker)) return fail(400, 'Already guessed')
 
   const next: Session = { ...s, guesses: [...s.guesses, c.ticker] }
-  const r = await replay(next)
+  const extra = s.mode === 'daily' ? await wif.cluesBought(toAddress(s.player), s.ref) : 0
+  const r = await replay(next, extra)
   const res: GuessResponse = {
     session: encodeSession(next),
     guess: r.guesses[r.guesses.length - 1],
@@ -146,20 +148,57 @@ export async function claim(req: Request): Promise<Response> {
   if (!chainApi.onchainReady()) return fail(503, 'On-chain recording is not configured on this server')
 
   const guesses = r.guesses.length
+  const reward = () => payWif(player, s.ref, guesses)
   const existing = await chainApi.solvedIn(player, s.ref)
-  if (existing) return json({ alreadyRecorded: true, day: s.ref, guesses: existing, deadline: '0' } satisfies ClaimResponse)
+  if (existing) return json({ alreadyRecorded: true, day: s.ref, guesses: existing, deadline: '0', wif: await reward() } satisfies ClaimResponse)
 
   const { signature, deadline } = await chainApi.signSolve(player, s.ref, guesses)
   if (env.relay) {
     try {
       const txHash = await chainApi.relaySolve(player, s.ref, guesses, deadline, signature)
-      return json({ txHash, day: s.ref, guesses, deadline: deadline.toString() } satisfies ClaimResponse)
+      return json({ txHash, day: s.ref, guesses, deadline: deadline.toString(), wif: await reward() } satisfies ClaimResponse)
     } catch (e) {
       console.error('relay failed', e)
       // fall through: return the signature so the player can submit it themselves
     }
   }
-  return json({ signature, day: s.ref, guesses, deadline: deadline.toString() } satisfies ClaimResponse)
+  return json({ signature, day: s.ref, guesses, deadline: deadline.toString(), wif: await reward() } satisfies ClaimResponse)
+}
+
+/** Pays the $WIF reward on mainnet. Never fails the claim: the streak is recorded either way. */
+async function payWif(player: Address, day: number, guesses: number): Promise<ClaimResponse['wif']> {
+  if (!wif.wifReady()) return undefined
+  try {
+    const r = await wif.payReward(player, day, guesses)
+    if (!r) return undefined
+    if ('alreadyClaimed' in r) return { alreadyClaimed: true }
+    return { txHash: r.txHash, amount: r.amount }
+  } catch (e) {
+    console.error('wif reward failed', e)
+    return { error: 'The $WIF reward could not be sent right now.' }
+  }
+}
+
+// ───────────────────────────── $WIF ─────────────────────────────
+
+/** GET /api/wif?player=0x… : pot state, plus the player's claim/clue status for today. */
+export async function wifInfo(req: Request): Promise<Response> {
+  const t = today()
+  const pot = await wif.potInfo(t)
+  if (!pot) return json({ enabled: false })
+  const player = toAddress(new URL(req.url).searchParams.get('player'))
+  return json({ enabled: true, day: t, ...pot, me: player ? await wif.playerWif(player, t) : null }, 200, { 'cache-control': 'no-store' })
+}
+
+/** POST /api/wif/clues { session } : re-reads clues after the player bought one on-chain. */
+export async function wifClues(req: Request): Promise<Response> {
+  const body = (await req.json().catch(() => ({}))) as { session?: string }
+  const s = body.session ? decodeSession(body.session) : null
+  if (!s) return fail(400, 'Invalid session')
+  if (s.mode !== 'daily' || s.ref !== today()) return fail(400, 'Clues can only be bought for today\'s daily case')
+  const extra = await wif.cluesBought(toAddress(s.player), s.ref)
+  const r = await replay(s, extra)
+  return json({ clues: r.clues, cluesBought: extra })
 }
 
 export async function player(req: Request): Promise<Response> {
@@ -301,7 +340,16 @@ export async function portfolio(req: Request): Promise<Response> {
 
 export { tradeIntentMessage }
 
+/**
+ * Robinhood's Stock Token restricted jurisdictions (docs.robinhood.com/rhj/restricted-jurisdictions):
+ * prohibited-investor countries, plus the US, Canada, UK and Switzerland where Stock Tokens may not be offered.
+ * Demo trading uses Stock Token prices, so it follows the same list. The daily puzzle and $WIF loop are unaffected.
+ */
+const TRADE_BLOCKED = new Set(['CU', 'BY', 'IR', 'KP', 'RU', 'SY', 'UA', 'SS', 'SD', 'MM', 'VE', 'US', 'CA', 'GB', 'CH'])
+export const tradeBlockedFor = (req: Request) => TRADE_BLOCKED.has((req.headers.get('x-vercel-ip-country') ?? '').toUpperCase())
+
 export async function trade(req: Request): Promise<Response> {
+  if (tradeBlockedFor(req)) return fail(451, 'Stock Token trading is not available in your region.')
   if (!chainApi.onchainReady()) return fail(503, 'Trading is not live on this server yet')
   const b = (await req.json().catch(() => ({}))) as {
     player?: string; side?: 'buy' | 'sell'; symbol?: string; amount?: string; unit?: 'TCKR' | 'shares'; nonce?: string; expires?: number; signature?: Hex

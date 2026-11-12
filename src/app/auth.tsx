@@ -1,17 +1,21 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { PrivyProvider, usePrivy, useSignMessage } from '@privy-io/react-auth'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import '@rainbow-me/rainbowkit/styles.css'
+import { connectorsForWallets, lightTheme, RainbowKitProvider, useConnectModal } from '@rainbow-me/rainbowkit'
+import { coinbaseWallet, injectedWallet, metaMaskWallet, rabbyWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets'
+import { createConfig, http, useAccount, useDisconnect, useSignMessage, WagmiProvider } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { robinhoodTestnet } from '../../shared/chain'
+import { robinhoodMainnet } from '../../shared/wif'
 
 export type Auth = {
   ready: boolean
-  kind: 'privy' | 'guest'
   authenticated: boolean
   address: string | null
+  /** Name of the connected wallet (e.g. "MetaMask"). */
   label: string | null
   login: () => void
   logout: () => void
-  /** Personal-sign a message with the player's wallet (no gas, no popup). */
+  /** Personal-sign a message with the player's wallet. No gas, no transaction: one signature prompt. */
   signMessage: (message: string) => Promise<`0x${string}`>
 }
 
@@ -22,91 +26,62 @@ export const useAuth = () => {
   return a
 }
 
-const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID as string | undefined
+/**
+ * WalletConnect Cloud / Reown project id. Needed for mobile wallets, including Robinhood Wallet,
+ * which connects by scanning a WalletConnect QR code. Without it only browser-extension wallets are offered.
+ */
+const WC_PROJECT_ID = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined) || undefined
 
-/** Email sign-in with an embedded wallet via Privy. Falls back to a browser-local guest wallet when no app id is set. */
+const connectors = connectorsForWallets(
+  WC_PROJECT_ID
+    ? [
+        { groupName: 'Robinhood Wallet & mobile', wallets: [walletConnectWallet] },
+        { groupName: 'Browser wallets', wallets: [metaMaskWallet, rabbyWallet, coinbaseWallet, injectedWallet] },
+      ]
+    : [{ groupName: 'Browser wallets', wallets: [rabbyWallet, coinbaseWallet, injectedWallet] }],
+  { appName: 'Tickr', projectId: WC_PROJECT_ID ?? 'walletconnect-disabled' },
+)
+
+// The game runs on testnet and players only sign messages there (the server relays and pays gas).
+// Mainnet is added for the $WIF loop: buying an extra clue is the one transaction a player sends.
+const wagmiConfig = createConfig({
+  chains: [robinhoodTestnet, robinhoodMainnet],
+  connectors,
+  transports: { [robinhoodTestnet.id]: http(), [robinhoodMainnet.id]: http() },
+})
+const queryClient = new QueryClient()
+
+const theme = lightTheme({ accentColor: '#201c15', accentColorForeground: '#e6e0cf', borderRadius: 'large', fontStack: 'system' })
+
+/** Connect-wallet sign-in on Robinhood Chain (RainbowKit + wagmi). */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  if (PRIVY_APP_ID) {
-    return (
-      <PrivyProvider
-        appId={PRIVY_APP_ID}
-        config={{
-          loginMethods: ['email'],
-          appearance: { theme: 'dark', accentColor: '#B8F36B', logo: '/favicon.svg', landingHeader: 'Sign in to Tickr', loginMessage: 'Your streak lives on Robinhood Chain testnet.' },
-          embeddedWallets: { ethereum: { createOnLogin: 'users-without-wallets' } },
-          defaultChain: robinhoodTestnet,
-          supportedChains: [robinhoodTestnet],
-        }}
-      >
-        <PrivyBridge>{children}</PrivyBridge>
-      </PrivyProvider>
-    )
-  }
-  return <GuestAuth>{children}</GuestAuth>
-}
-
-function PrivyBridge({ children }: { children: ReactNode }) {
-  const { ready, authenticated, user, login, logout } = usePrivy()
-  const { signMessage } = useSignMessage()
-  const address = user?.wallet?.address ?? null
-  const value = useMemo<Auth>(
-    () => ({
-      ready,
-      kind: 'privy',
-      authenticated: authenticated && Boolean(address),
-      address,
-      label: user?.email?.address ?? null,
-      login,
-      logout: () => void logout(),
-      signMessage: async (message) => (await signMessage({ message }, { uiOptions: { showWalletUIs: false }, address: address ?? undefined })).signature as `0x${string}`,
-    }),
-    [ready, authenticated, address, user, login, logout, signMessage],
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider theme={theme} initialChain={robinhoodTestnet} appInfo={{ appName: 'Tickr', learnMoreUrl: 'https://chain.robinhood.com' }}>
+          <WalletBridge>{children}</WalletBridge>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
-const GUEST_KEY = 'tickr.guestKey'
-function GuestAuth({ children }: { children: ReactNode }) {
-  const [address, setAddress] = useState<string | null>(null)
-  useEffect(() => {
-    try {
-      const k = localStorage.getItem(GUEST_KEY) as `0x${string}` | null
-      if (k) setAddress(privateKeyToAccount(k).address)
-    } catch {
-      /* storage unavailable */
-    }
-  }, [])
+function WalletBridge({ children }: { children: ReactNode }) {
+  const { address, status, connector } = useAccount()
+  const { openConnectModal } = useConnectModal()
+  const { disconnect } = useDisconnect()
+  const { signMessageAsync } = useSignMessage()
   const value = useMemo<Auth>(
     () => ({
-      ready: true,
-      kind: 'guest',
+      ready: status !== 'reconnecting',
       authenticated: Boolean(address),
-      address,
-      label: address ? 'Guest wallet (this browser)' : null,
-      login: () => {
-        const k = generatePrivateKey()
-        try {
-          localStorage.setItem(GUEST_KEY, k)
-        } catch {
-          /* ignore */
-        }
-        setAddress(privateKeyToAccount(k).address)
-      },
-      logout: () => {
-        try {
-          localStorage.removeItem(GUEST_KEY)
-        } catch {
-          /* ignore */
-        }
-        setAddress(null)
-      },
-      signMessage: async (message) => {
-        const k = localStorage.getItem(GUEST_KEY) as `0x${string}` | null
-        if (!k) throw new Error('Not signed in')
-        return privateKeyToAccount(k).signMessage({ message })
-      },
+      address: address ?? null,
+      label: connector?.name ?? null,
+      login: () => openConnectModal?.(),
+      logout: () => disconnect(),
+      signMessage: (message) => signMessageAsync({ message }),
     }),
-    [address],
+    [status, address, connector, openConnectModal, disconnect, signMessageAsync],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

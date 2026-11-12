@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Check, ExternalLink, Link2, Loader2, Lock, RotateCcw, Swords } from 'lucide-react'
+import { Anchor, Check, ExternalLink, Heart, Link2, Loader2, Lock, RotateCcw, Swords } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import GameChart from './GameChart'
 import GuessInput from './GuessInput'
 import ResultBadge from '../components/ResultBadge'
+import { CaptainArt } from '../components/landing/art'
+import { LoaderInline } from '../components/LoaderScreen'
+import WifPanel, { fmtWif } from './WifPanel'
+import { robinhoodMainnet } from '../../shared/wif'
 import Scorecard, { ShareButton, scorecardText } from '../components/Scorecard'
 import { CLUE_LABELS, MAX_GUESSES, type GuessResult } from '../../shared/companies'
-import type { ConfigPayload, GuessResponse, PuzzlePayload } from '../../shared/api'
+import type { ClaimResponse, ConfigPayload, GuessResponse, PuzzlePayload } from '../../shared/api'
 import { api } from './api'
 import { useAuth } from './auth'
 import { useCountdownTo } from './useConfig'
 
 type GuessRow = GuessResponse['guesses'][number]
-type ClaimState = { state: 'idle' | 'recording' | 'done' | 'error' | 'unavailable'; txHash?: string; message?: string }
+type ClaimState = { state: 'idle' | 'recording' | 'done' | 'error' | 'unavailable'; txHash?: string; message?: string; wif?: ClaimResponse['wif'] }
 type Saved = {
   session: string
   puzzle: PuzzlePayload
@@ -98,7 +102,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
       setG({ ...state, claim: { state: 'recording' } })
       try {
         const r = await api.claim(state.session)
-        const next: ClaimState = r.alreadyRecorded ? { state: 'done' } : r.txHash ? { state: 'done', txHash: r.txHash } : { state: 'error', message: 'Relayer unavailable — try again shortly.' }
+        const next: ClaimState = r.alreadyRecorded ? { state: 'done', wif: r.wif } : r.txHash ? { state: 'done', txHash: r.txHash, wif: r.wif } : { state: 'error', message: 'Relayer unavailable — try again shortly.' }
         setG((cur) => (cur ? { ...cur, claim: next } : cur))
         setTimeout(statsChanged, 2500)
       } catch (e) {
@@ -129,11 +133,11 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
     return (
       <div className="panel grid place-items-center rounded-[28px] px-6 py-20 text-center">
         <p className="micro text-market">Daily case {cfg.puzzleLabel}</p>
-        <h2 className="mt-4 font-display text-4xl font-semibold uppercase tracking-tight sm:text-5xl">Sign in to play the daily</h2>
-        <p className="mt-4 max-w-md text-[15px] text-paper/65">Your streak is recorded on Robinhood Chain testnet, so it needs an address. Email sign-in creates one for you. No seed phrase, no gas.</p>
+        <h2 className="mt-4 font-display text-4xl uppercase tracking-tight sm:text-5xl">Sign in to play the daily</h2>
+        <p className="mt-4 max-w-md text-[15px] text-paper/65">Your streak is recorded on Robinhood Chain testnet against your wallet address. Connect Robinhood Wallet, MetaMask or any EVM wallet. You'll only ever sign messages. No gas, no transactions.</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button onClick={auth.login} className="rounded-full bg-market px-6 py-3 text-[13px] font-semibold text-obsidian transition hover:bg-paper">
-            {auth.kind === 'privy' ? 'Sign in with email' : 'Create guest wallet'}
+            Connect wallet
           </button>
           <Link to="/play/practice" className="rounded-full border border-line px-6 py-3 text-[13px] font-medium transition hover:border-paper/40">Try practice first</Link>
         </div>
@@ -149,7 +153,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
             <button onClick={() => void start()} className="mt-4 rounded-full border border-line px-5 py-2.5 text-[13px]">Try again</button>
           </div>
         ) : (
-          <span className="micro flex items-center gap-2 text-muted"><Loader2 size={14} className="animate-spin" /> Pulling the chart…</span>
+          <LoaderInline text="Pulling the chart…" />
         )}
       </div>
     )
@@ -190,7 +194,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
                   <span className="micro block !text-[9px] text-muted">Clue {i + 1} · {label}</span>
                   <AnimatePresence mode="wait" initial={false}>
                     {c ? (
-                      <motion.span key="v" initial={reduce ? false : { opacity: 0, filter: 'blur(8px)', y: 6 }} animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }} transition={{ duration: 0.5 }} className="mt-1 block truncate font-display text-[15px] font-medium">
+                      <motion.span key="v" initial={reduce ? false : { opacity: 0, filter: 'blur(8px)', y: 6 }} animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }} transition={{ duration: 0.5 }} className="mt-1 block truncate font-display text-[15px]">
                         {c.value}
                       </motion.span>
                     ) : (
@@ -207,6 +211,14 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
         <div className="relative p-4 sm:p-6">
           <GuessInput used={g.guesses.map((x) => x.ticker)} disabled={done} busy={busy} label={`Guess ${Math.min(g.guesses.length + 1, MAX_GUESSES)} of ${MAX_GUESSES}`} onGuess={onGuess} />
           {error && <p className="-mt-1 mb-2 text-[12px] text-loss">{error}</p>}
+          <div className="mb-3 flex items-center justify-between">
+            <span className="micro text-muted">Lives</span>
+            <span className="flex gap-1.5" role="img" aria-label={`${MAX_GUESSES - g.guesses.length} of ${MAX_GUESSES} guesses left`}>
+              {Array.from({ length: MAX_GUESSES }, (_, i) => (
+                <Heart key={i} size={18} strokeWidth={2.5} className={`transition-opacity ${i < MAX_GUESSES - g.guesses.length ? 'fill-loss text-line-ink' : 'text-ink/25'}`} />
+              ))}
+            </span>
+          </div>
           <ol className="space-y-2" aria-label="Your guesses" aria-live="polite">
             {Array.from({ length: MAX_GUESSES }, (_, i) => {
               const row = g.guesses[i]
@@ -215,7 +227,7 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
                   <span className="font-mono text-[11px] text-muted">0{i + 1}</span>
                   {row && (
                     <motion.div initial={reduce ? false : { opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="shrink-0 font-display text-[16px] font-semibold tracking-tight">{row.ticker}</span>
+                      <span className="shrink-0 font-display text-[16px] tracking-tight">{row.ticker}</span>
                       <span className="truncate text-[12px] text-muted">{row.name}</span>
                       <ResultBadge result={row.result} className="ml-auto shrink-0" />
                     </motion.div>
@@ -225,6 +237,9 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
               )
             })}
           </ol>
+          {mode === 'daily' && (
+            <WifPanel session={g.session} canBuy={!done && g.clues.length < 5} onClues={(clues) => setG((cur) => (cur ? { ...cur, clues } : cur))} />
+          )}
 
           <AnimatePresence>
             {done && g.answer && (
@@ -232,14 +247,17 @@ export default function Game({ mode, cfg, duel, streak = 0 }: { mode: 'daily' | 
                 initial={reduce ? false : { opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-0 z-20 flex flex-col gap-3.5 overflow-y-auto bg-charcoal/97 p-5 backdrop-blur-md sm:p-7"
+                className="absolute inset-0 z-20 flex flex-col gap-3.5 overflow-y-auto bg-surface p-5 sm:p-7"
                 role="dialog"
                 aria-label={g.status === 'won' ? 'Case closed' : 'Case unsolved'}
               >
+                <div className="flex items-start gap-4">
+                {g.status === 'won' ? <div className="bob w-16 shrink-0"><CaptainArt /></div> : <Anchor size={40} className="mt-1 shrink-0 text-ink/60" aria-hidden="true" />}
                 <div>
                   <p className={`micro ${g.status === 'won' ? 'text-market' : 'text-loss'}`}>{g.status === 'won' ? 'Case closed' : 'Case unsolved'}</p>
-                  <p className="mt-2 font-display text-3xl font-semibold uppercase leading-[0.95] tracking-tight">{g.answer.name}</p>
+                  <p className="mt-2 font-display text-3xl uppercase leading-[0.95] tracking-tight">{g.answer.name}</p>
                   <p className="mt-1 font-mono text-sm text-market">{g.answer.ticker} · {g.answer.year}</p>
+                </div>
                 </div>
                 <Scorecard puzzle={g.puzzle.number ?? 0} results={results} solved={g.status === 'won'} streak={g.claim.state === 'done' ? streak : 0} hideStreak={mode === 'practice' || g.status !== 'won'} label={mode === 'practice' ? 'Practice' : g.puzzle.label ? `Tickr ${g.puzzle.label}` : undefined} />
 
@@ -273,6 +291,7 @@ function ClaimStatus({ claim, explorer, onRetry }: { claim: ClaimState; explorer
     return <p className="flex items-center gap-2 rounded-xl border border-line px-3.5 py-3 text-[13px] text-paper/75"><Loader2 size={14} className="animate-spin text-market" /> Recording your solve on Robinhood Chain…</p>
   if (claim.state === 'done')
     return (
+      <>
       <p className="flex items-center gap-2 rounded-xl border border-market/30 bg-market/[0.06] px-3.5 py-3 text-[13px]">
         <Check size={14} className="text-market" /> Streak + $TCKR points saved on-chain.
         {claim.txHash && explorer && (
@@ -281,12 +300,33 @@ function ClaimStatus({ claim, explorer, onRetry }: { claim: ClaimState; explorer
           </a>
         )}
       </p>
+      <WifReward wif={claim.wif} />
+      </>
     )
   return (
     <div className="rounded-xl border border-loss/30 px-3.5 py-3 text-[13px]">
       <p className="text-loss">Couldn't record on-chain: {claim.message}</p>
       {claim.state === 'error' && <button onClick={onRetry} className="mt-2 text-market hover:underline">Retry</button>}
     </div>
+  )
+}
+
+function WifReward({ wif }: { wif?: ClaimResponse['wif'] }) {
+  if (!wif) return null
+  const mainnet = robinhoodMainnet.blockExplorers.default.url
+  if (wif.error) return <p className="rounded-xl border border-loss/30 px-3.5 py-3 text-[13px] text-loss">{wif.error}</p>
+  if (wif.alreadyClaimed) return <p className="rounded-xl border border-line px-3.5 py-3 text-[13px] text-paper/75">Today's $WIF reward is already in your wallet.</p>
+  const amt = Number(wif.amount ?? 0)
+  return (
+    <p className="flex items-center gap-2 rounded-xl border-2 border-line-ink bg-band px-3.5 py-3 text-[13px]">
+      <Check size={14} className="text-market" />
+      {amt > 0 ? <span><b>+{fmtWif(amt)} $WIF</b> sent to your wallet.</span> : <span>Today's $WIF pot is empty. Come back tomorrow.</span>}
+      {wif.txHash && (
+        <a href={`${mainnet}/tx/${wif.txHash}`} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-market hover:underline">
+          View tx <ExternalLink size={12} />
+        </a>
+      )}
+    </p>
   )
 }
 

@@ -20,11 +20,24 @@ export default function Duel({ cfg }: { cfg: ConfigPayload }) {
   const live = d === cfg.today
   const label = d < cfg.launchDay ? `Preview #${d - cfg.previewDay + 1}` : `#${String(d - cfg.launchDay + 1).padStart(3, '0')}`
 
+  // Hard mode from the level select: no challenge yet, so explain how a duel works.
+  if (!p.get('d')) {
+    return (
+      <div className="panel mx-auto max-w-xl p-8 text-center sm:p-12">
+        <Swords className="mx-auto text-market" size={30} />
+        <p className="eyebrow mt-6 text-[15px] text-muted">Hard mode · Duel</p>
+        <h1 className="mt-3 font-display text-5xl uppercase leading-[0.95]">Beat a friend</h1>
+        <p className="mx-auto mt-5 max-w-sm text-[15px] text-paper/70">Solve today's case, then copy your duel link from the result card. Your friend gets the same chart and has to beat your score.</p>
+        <Link to="/play" className="mt-8 inline-block bg-market px-6 py-3 text-[13px] text-obsidian">Play today's case</Link>
+      </div>
+    )
+  }
+
   return (
     <div className="panel mx-auto max-w-xl rounded-[28px] p-8 text-center sm:p-12">
       <Swords className="mx-auto text-market" size={30} />
       <p className="micro mt-6 text-muted">Duel · Case {label}</p>
-      <h1 className="mt-3 font-display text-4xl font-semibold uppercase leading-[0.95] tracking-tight">{by} challenges you</h1>
+      <h1 className="mt-3 font-display text-4xl uppercase leading-[0.95] tracking-tight">{by} challenges you</h1>
       <p className="mt-5 text-2xl tracking-[0.2em]">{r.map((x) => ({ miss: '🟥', warm: '🟨', hit: '🟩' })[x]).join('')}</p>
       <p className="mt-2 text-paper/65">Solved in {r.length}/6. Same chart, no hints from them.</p>
       {live ? (

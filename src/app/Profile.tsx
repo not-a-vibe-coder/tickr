@@ -11,16 +11,16 @@ export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: P
   if (!auth.address)
     return (
       <div className="panel mx-auto max-w-lg rounded-[28px] p-10 text-center">
-        <h1 className="font-display text-3xl font-semibold uppercase">Your case file</h1>
+        <h1 className="font-display text-3xl uppercase">Your case file</h1>
         <p className="mt-3 text-paper/65">Sign in to get 10,000 $TCKR, track your streak and trade.</p>
-        <button onClick={auth.login} className="mt-6 rounded-full bg-market px-6 py-3 text-[13px] font-semibold text-obsidian">{auth.kind === 'privy' ? 'Sign in with email' : 'Create guest wallet'}</button>
+        <button onClick={auth.login} className="mt-6 rounded-full bg-market px-6 py-3 text-[13px] font-semibold text-obsidian">Connect wallet</button>
       </div>
     )
 
   const stat = (label: string, value: React.ReactNode, sub?: string) => (
     <div className="panel rounded-3xl p-5">
       <p className="micro text-muted">{label}</p>
-      <p className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{value}</p>
+      <p className="mt-3 font-display text-3xl tracking-tight sm:text-4xl">{value}</p>
       {sub && <p className="mt-1 text-[12px] text-muted">{sub}</p>}
     </div>
   )
@@ -64,8 +64,8 @@ export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: P
           <ol className="mt-5 space-y-2">
             {(player?.milestones ?? [3, 7, 14, 30].map((s) => ({ streak: s, bonus: 0, earned: false }))).map((m) => (
               <li key={m.streak} className={`flex items-center gap-4 rounded-2xl border px-4 py-3 ${m.earned ? 'border-market/40 bg-market/[0.05]' : 'border-line'}`}>
-                <span className={`grid h-8 w-8 place-items-center rounded-full ${m.earned ? 'bg-market text-obsidian' : 'bg-white/[0.05] text-muted'}`}>{m.earned ? <Check size={15} /> : <Lock size={13} />}</span>
-                <span className="font-display text-lg font-semibold">Day {m.streak} streak</span>
+                <span className={`grid h-8 w-8 place-items-center rounded-full ${m.earned ? 'bg-market text-obsidian' : 'bg-paper/[0.05] text-muted'}`}>{m.earned ? <Check size={15} /> : <Lock size={13} />}</span>
+                <span className="font-display text-lg">Day {m.streak} streak</span>
                 <span className="ml-auto font-mono text-[13px] text-market">{m.bonus ? `+${fmtNum(m.bonus, 0)}` : '—'} TCKR</span>
               </li>
             ))}

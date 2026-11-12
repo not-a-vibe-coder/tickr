@@ -111,7 +111,7 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
               const qq = quotes.get(a.symbol)
               return (
                 <li key={a.symbol}>
-                  <button onClick={() => setSymbol(a.symbol)} className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${a.symbol === symbol ? 'bg-white/[0.07]' : 'hover:bg-white/[0.03]'}`}>
+                  <button onClick={() => setSymbol(a.symbol)} className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${a.symbol === symbol ? 'bg-paper/[0.07]' : 'hover:bg-paper/[0.03]'}`}>
                     <TokenLogo asset={a} size={28} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold">
@@ -143,7 +143,7 @@ export default function Trade({ cfg }: { cfg: ConfigPayload }) {
               <TokenLogo asset={asset} size={36} />
               <div>
                 <p className="flex items-baseline gap-2">
-                  <span className="font-display text-2xl font-semibold tracking-tight">{asset.symbol}</span>
+                  <span className="font-display text-2xl tracking-tight">{asset.symbol}</span>
                   <span className="text-[13px] text-muted">{asset.name}</span>
                 </p>
                 <p className="flex items-baseline gap-2 font-mono">
@@ -267,7 +267,7 @@ function Positions({ portfolio, onPick }: { portfolio: PortfolioPayload | null; 
             </thead>
             <tbody>
               {portfolio.holdings.map((h) => (
-                <tr key={h.symbol} onClick={() => onPick(h.symbol)} className="cursor-pointer border-t border-line hover:bg-white/[0.03]">
+                <tr key={h.symbol} onClick={() => onPick(h.symbol)} className="cursor-pointer border-t border-line hover:bg-paper/[0.03]">
                   <td className="px-5 py-3">
                     <span className="flex items-center gap-2.5">
                       <TokenLogo asset={assets.find((a) => a.symbol === h.symbol) ?? { symbol: h.symbol, logo: null }} size={22} />
@@ -384,7 +384,7 @@ function OrderTicket({ cfg, asset, quote, holdingQty, cash, onFilled }: { cfg: C
           {state.kind === 'busy' ? <><Loader2 size={15} className="animate-spin" /> {state.msg}</> : over ? (side === 'buy' ? 'Not enough TCKR' : 'Not enough shares') : <>{side === 'buy' ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />} {side === 'buy' ? 'Buy' : 'Sell'} {asset.symbol}</>}
         </button>
       ) : (
-        <button onClick={auth.login} className="mt-5 h-12 w-full rounded-full bg-market text-[14px] font-semibold text-obsidian">{auth.kind === 'privy' ? 'Sign in to trade' : 'Play as guest to trade'}</button>
+        <button onClick={auth.login} className="mt-5 h-12 w-full rounded-full bg-market text-[14px] font-semibold text-obsidian">Connect wallet to trade</button>
       )}
 
       <AnimatePresence>

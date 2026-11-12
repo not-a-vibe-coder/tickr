@@ -44,9 +44,9 @@ export function searchAssets(assets: Asset[], query: string, limit = 8, exclude:
 export function TokenLogo({ asset, size = 24 }: { asset: Pick<Asset, 'symbol' | 'logo'>; size?: number }) {
   const [broken, setBroken] = useState(false)
   if (asset.logo && !broken)
-    return <img src={asset.logo} alt="" width={size} height={size} onError={() => setBroken(true)} className="shrink-0 rounded-full bg-white/10 object-cover" style={{ width: size, height: size }} />
+    return <img src={asset.logo} alt="" width={size} height={size} onError={() => setBroken(true)} className="shrink-0 rounded-full bg-paper/10 object-cover" style={{ width: size, height: size }} />
   return (
-    <span className="grid shrink-0 place-items-center rounded-full bg-market/15 font-display font-semibold text-market" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden="true">
+    <span className="grid shrink-0 place-items-center rounded-full bg-market/15 font-display text-market" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden="true">
       {asset.symbol.slice(0, 1)}
     </span>
   )

@@ -45,7 +45,7 @@ export default function Scorecard({ puzzle, results, solved, streak, hideStreak,
   return (
     <div className="rounded-2xl border border-line bg-obsidian/70 p-5 text-center">
       <p className="micro text-muted">{label ?? `Tickr #${String(puzzle).padStart(3, '0')}`}</p>
-      <p className="mt-2 font-display text-4xl font-semibold tracking-tight">{solved ? results.length : 'X'}/6</p>
+      <p className="mt-2 font-display text-4xl tracking-tight">{solved ? results.length : 'X'}/6</p>
       <p className="mt-3 text-2xl tracking-[0.2em]" aria-label={results.map((r) => RESULT_META[r].label).join(', ')}>
         {results.map((r) => RESULT_META[r].emoji).join('')}
       </p>

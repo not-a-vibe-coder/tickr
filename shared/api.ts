@@ -65,4 +65,35 @@ export type PlayerPayload = {
 
 export type LeaderboardRow = { address: string; streak: number; bestStreak: number; solves: number; avgGuesses: number; netWorth: number; cash: number; positions: number }
 
-export type ClaimResponse = { txHash?: string; signature?: string; deadline: string; day: number; guesses: number; alreadyRecorded?: boolean }
+export type ClaimResponse = {
+  txHash?: string
+  signature?: string
+  deadline: string
+  day: number
+  guesses: number
+  alreadyRecorded?: boolean
+  /** $WIF reward on Robinhood Chain mainnet (absent when the pot isn't configured). */
+  wif?: { txHash?: string; amount?: string; alreadyClaimed?: boolean; error?: string }
+}
+
+export type WifInfo =
+  | { enabled: false }
+  | {
+      enabled: true
+      day: number
+      chainId: number
+      pot: string
+      token: string
+      explorer: string
+      balance: string
+      rewardUnit: string
+      maxReward: string
+      dailyCap: string
+      leftToday: string
+      cluePrice: string
+      cluePriceWei: string
+      burnBps: number
+      totalPaid: string
+      totalBurned: string
+      me: { claimed: boolean; cluesBought: number } | null
+    }

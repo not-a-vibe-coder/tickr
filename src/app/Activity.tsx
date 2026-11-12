@@ -21,7 +21,7 @@ export function TradeTape({ trades, showSymbol = true, onPick, empty = 'No trade
     <ul className="divide-y divide-line">
       <AnimatePresence initial={false}>
         {trades.map((t) => (
-          <motion.li key={`${t.player}-${t.time}-${t.symbol}-${t.qty}`} layout initial={{ opacity: 0, backgroundColor: 'rgba(184,243,107,0.12)' }} animate={{ opacity: 1, backgroundColor: 'rgba(0,0,0,0)' }} transition={{ duration: 0.8 }} className="flex items-center gap-2.5 px-4 py-2.5 text-[12.5px]">
+          <motion.li key={`${t.player}-${t.time}-${t.symbol}-${t.qty}`} layout initial={{ opacity: 0, backgroundColor: 'rgba(14,117,55,0.12)' }} animate={{ opacity: 1, backgroundColor: 'rgba(0,0,0,0)' }} transition={{ duration: 0.8 }} className="flex items-center gap-2.5 px-4 py-2.5 text-[12.5px]">
             <span className={`w-9 shrink-0 font-mono text-[10.5px] font-semibold uppercase ${t.side === 'buy' ? 'text-market' : 'text-loss'}`}>{t.side}</span>
             {showSymbol && (
               <button onClick={() => onPick?.(t.symbol)} className="w-12 shrink-0 text-left font-mono font-semibold hover:text-market">{t.symbol}</button>

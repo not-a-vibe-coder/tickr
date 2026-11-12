@@ -48,7 +48,7 @@ export default function PublicProfile({ cfg }: { cfg: ConfigPayload }) {
   const cell = (label: string, value: React.ReactNode, sub?: React.ReactNode) => (
     <div className="panel rounded-3xl p-5">
       <p className="micro text-muted">{label}</p>
-      <p className="mt-3 font-display text-3xl font-semibold tracking-tight">{value}</p>
+      <p className="mt-3 font-display text-3xl tracking-tight">{value}</p>
       {sub && <p className="mt-1 text-[12px] text-muted">{sub}</p>}
     </div>
   )
@@ -102,7 +102,7 @@ export default function PublicProfile({ cfg }: { cfg: ConfigPayload }) {
                       <span className="ml-auto font-mono">{fmtNum(h.value, 0)}</span>
                       <span className={`w-20 text-right font-mono text-[12px] ${h.pnl >= 0 ? 'text-market' : 'text-loss'}`}>{h.pnlPct >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%</span>
                     </div>
-                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.05]">
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-paper/[0.05]">
                       <div className="h-full rounded-full bg-market/70" style={{ width: `${Math.min(100, weight)}%` }} />
                     </div>
                   </li>
