@@ -43,7 +43,7 @@
 | --- | --- |
 | `contracts/` | Foundry project: `TickrGame.sol`, tests, deploy script |
 | `server/` | Game logic: secret puzzle schedule, market data, sessions, chain calls |
-| `api/` | Vercel serverless functions (thin wrappers around `server/handlers.ts`) |
+| `api/router.ts` | The one Vercel serverless function; `server/router.ts` maps every `/api/*` route to `server/handlers.ts` (Hobby plan allows 12 functions) |
 | `shared/` | Company list, clue logic, chain config and ABI (used by both client and server) |
 | `src/` | React app: landing page (`components/`) and the game (`app/`) |
 | `scripts/` | `fetch-market-data.ts` (runs before every build) and `commit-puzzles.ts` |

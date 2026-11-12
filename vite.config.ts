@@ -3,7 +3,7 @@ import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-/** Serves /api/* from the same files Vercel deploys as serverless functions. */
+/** Serves /api/* through the same router Vercel deploys as its single serverless function. */
 function devApi(): Plugin {
   return {
     name: 'tickr-dev-api',
@@ -11,13 +11,8 @@ function devApi(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith('/api/')) return next()
         try {
-          const path = req.url.split('?')[0].replace(/\/$/, '')
-          const mod = await server.ssrLoadModule(`${path}.ts`)
-          const handler = mod[req.method ?? 'GET']
-          if (!handler) {
-            res.statusCode = 405
-            return res.end('Method not allowed')
-          }
+          const { route } = await server.ssrLoadModule('/server/router.ts')
+          const handler = route as (r: Request) => Promise<Response>
           const chunks: Buffer[] = []
           for await (const c of req) chunks.push(c as Buffer)
           const request = new Request(`http://localhost${req.url}`, {
