@@ -13,6 +13,8 @@
 - **Public portfolios (`/u/<address>`):** anyone can view a player's holdings, P&L, rank and trades. The leaderboard and the trade feed link to them.
 - **Also included:** `/play/practice` for unlimited past charts, `/me` for your case file and portfolio, and `/duel` for challenge links.
 
+**New player?** Read [HOW_TO_PLAY.md](HOW_TO_PLAY.md) for a step-by-step guide to the daily case, $WIF rewards, buying clues, duels and demo trading.
+
 ## How it works
 
 ```
