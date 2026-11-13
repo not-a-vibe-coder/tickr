@@ -110,3 +110,64 @@ export async function payReward(player: Address, day: number, guesses: number) {
   const txHash = await send('claimReward', [player, day, guesses, deadline, signature])
   return { txHash, amount: fmt(amount) }
 }
+
+/** First block to scan for player events (the pot's deploy block). Any earlier block also works, just slower. */
+const FROM_BLOCK = BigInt(e('WIF_FROM_BLOCK') || '112538585')
+
+/** Runs a log query over [FROM_BLOCK, latest], splitting the range if the RPC refuses one large query. */
+async function scan<T>(get: (fromBlock: bigint, toBlock: bigint) => Promise<T[]>): Promise<T[]> {
+  const latest = await wifClient.getBlockNumber()
+  try {
+    return await get(FROM_BLOCK, latest)
+  } catch {
+    const STEP = 1_000_000n
+    const out: T[] = []
+    for (let from = FROM_BLOCK; from <= latest; from += STEP) {
+      const to = from + STEP - 1n < latest ? from + STEP - 1n : latest
+      out.push(...(await get(from, to)))
+    }
+    return out
+  }
+}
+
+/**
+ * A player's $WIF account with Tickr, rebuilt from on-chain events:
+ * everything they earned from solves, everything they spent on clues, and what their wallet holds now.
+ * Rewards go straight to the wallet, so there is nothing to withdraw.
+ */
+export async function playerHistory(player: Address) {
+  if (!wifReady()) return null
+  const [rewards, clues, balance] = await Promise.all([
+    scan((fromBlock, toBlock) => wifClient.getContractEvents({ address: POT!, abi: WIF_POT_ABI, eventName: 'Rewarded', args: { player }, fromBlock, toBlock })),
+    scan((fromBlock, toBlock) => wifClient.getContractEvents({ address: POT!, abi: WIF_POT_ABI, eventName: 'ClueBought', args: { player }, fromBlock, toBlock })),
+    wifClient.readContract({ address: WIF_TOKEN, abi: WIF_ERC20_ABI, functionName: 'balanceOf', args: [player] }),
+  ])
+  let earned = 0n
+  let spent = 0n
+  let burned = 0n
+  const events = [
+    ...rewards.map((l) => {
+      earned += l.args.amount!
+      return { kind: 'reward' as const, day: Number(l.args.day), amount: fmt(l.args.amount!), guesses: Number(l.args.guesses), txHash: l.transactionHash, block: l.blockNumber }
+    }),
+    ...clues.map((l) => {
+      spent += l.args.price!
+      burned += l.args.burned!
+      return { kind: 'clue' as const, day: Number(l.args.day), amount: fmt(l.args.price!), clueNumber: Number(l.args.clueNumber), burned: fmt(l.args.burned!), txHash: l.transactionHash, block: l.blockNumber }
+    }),
+  ]
+    .sort((a, b) => (a.block === b.block ? 0 : a.block > b.block ? -1 : 1))
+    .map(({ block, ...rest }) => (void block, rest))
+  return {
+    explorer: robinhoodMainnet.blockExplorers.default.url,
+    token: WIF_TOKEN,
+    wallet: fmt(balance),
+    earned: fmt(earned),
+    spent: fmt(spent),
+    burned: fmt(burned),
+    net: (earned >= spent ? '' : '-') + fmt(earned >= spent ? earned - spent : spent - earned),
+    wins: rewards.length,
+    cluesBought: clues.length,
+    events,
+  }
+}

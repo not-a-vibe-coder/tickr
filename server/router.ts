@@ -29,6 +29,7 @@ const routes: Record<string, Route> = {
   trade: { POST: (r) => h.trade(r) },
   wif: { GET: (r) => h.wifInfo(r) },
   'wif/clues': { POST: (r) => h.wifClues(r) },
+  'wif/history': { GET: (r) => h.wifHistory(r) },
 }
 
 const json = (status: number, error: string) =>

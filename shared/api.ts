@@ -76,6 +76,31 @@ export type ClaimResponse = {
   wif?: { txHash?: string; amount?: string; alreadyClaimed?: boolean; error?: string }
 }
 
+/** GET /api/wif/history?player= : a player's $WIF account with Tickr, from on-chain events. */
+export type WifHistory =
+  | { enabled: false }
+  | {
+      enabled: true
+      explorer: string
+      token: string
+      /** Current wallet balance (all $WIF the wallet holds, not only from Tickr). */
+      wallet: string
+      /** Total $WIF won from daily solves. */
+      earned: string
+      /** Total $WIF spent on clues. */
+      spent: string
+      /** Part of `spent` that was burned. */
+      burned: string
+      /** earned − spent (may start with "-"). */
+      net: string
+      wins: number
+      cluesBought: number
+      events: (
+        | { kind: 'reward'; day: number; amount: string; guesses: number; txHash: string }
+        | { kind: 'clue'; day: number; amount: string; clueNumber: number; burned: string; txHash: string }
+      )[]
+    }
+
 export type WifInfo =
   | { enabled: false }
   | {

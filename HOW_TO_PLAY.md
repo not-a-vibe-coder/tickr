@@ -66,6 +66,17 @@ When you solve the daily case with a wallet connected:
 - **The pot has a daily cap** (shown in the "Daily $WIF pot" panel as "$WIF left today"). It's first come, first served, so solving early matters.
 - The result card links to your reward transaction on the explorer.
 
+### Track your $WIF
+
+Open your profile (`/me`) and scroll to **Your $WIF**:
+
+- **Earned:** every $WIF you've won from daily solves.
+- **Spent on clues:** what you've paid for clues, and how much of it was burned.
+- **In your wallet:** all the $WIF your wallet holds right now.
+- **History:** every reward and clue purchase, newest first, each linked to its transaction.
+
+There's nothing to withdraw: rewards go straight to your wallet, so you can send or swap them any time. All of these numbers are read from Robinhood Chain, not from Tickr's own records.
+
 ## 5. Buy a clue with $WIF
 
 Stuck and don't want to burn a guess? In the **Daily $WIF pot** panel, click **Unlock next clue**.

@@ -190,6 +190,14 @@ export async function wifInfo(req: Request): Promise<Response> {
   return json({ enabled: true, day: t, ...pot, me: player ? await wif.playerWif(player, t) : null }, 200, { 'cache-control': 'no-store' })
 }
 
+/** GET /api/wif/history?player= : everything a player earned and spent in $WIF, from on-chain events. */
+export async function wifHistory(req: Request): Promise<Response> {
+  const player = toAddress(new URL(req.url).searchParams.get('player'))
+  if (!player) return fail(400, 'Pass ?player=<address>')
+  const h = await wif.playerHistory(player)
+  return json(h ? { enabled: true, ...h } : { enabled: false }, 200, { 'cache-control': 'no-store' })
+}
+
 /** POST /api/wif/clues { session } : re-reads clues after the player bought one on-chain. */
 export async function wifClues(req: Request): Promise<Response> {
   const body = (await req.json().catch(() => ({}))) as { session?: string }

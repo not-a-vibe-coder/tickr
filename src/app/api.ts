@@ -1,4 +1,4 @@
-import type { ClaimResponse, ConfigPayload, GuessResponse, LeaderboardRow, PlayerPayload, PuzzlePayload, WifInfo } from '../../shared/api'
+import type { ClaimResponse, ConfigPayload, GuessResponse, LeaderboardRow, PlayerPayload, PuzzlePayload, WifHistory, WifInfo } from '../../shared/api'
 import type { Candle, PortfolioPayload, Quote, Timeframe } from '../../shared/market'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -22,6 +22,7 @@ export const api = {
   candles: (symbol: string, tf: Timeframe) => req<{ candles: Candle[] }>(`/api/market/candles?symbol=${encodeURIComponent(symbol)}&tf=${tf}`),
   portfolio: (address: string) => req<PortfolioPayload>(`/api/portfolio?address=${address}`),
   wif: (player?: string | null) => req<WifInfo>(`/api/wif${player ? `?player=${player}` : ''}`),
+  wifHistory: (player: string) => req<WifHistory>(`/api/wif/history?player=${player}`),
   wifClues: (session: string) => req<{ clues: GuessResponse['clues']; cluesBought: number }>('/api/wif/clues', { method: 'POST', body: JSON.stringify({ session }) }),
   trade: (body: Record<string, unknown>) => req<{ txHash: string; symbol: string; side: string; qty: number; price: number; value: number }>('/api/trade', { method: 'POST', body: JSON.stringify(body) }),
 }
