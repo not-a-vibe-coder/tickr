@@ -95,5 +95,6 @@ export type WifInfo =
       burnBps: number
       totalPaid: string
       totalBurned: string
-      me: { claimed: boolean; cluesBought: number } | null
+      /** The player's own $WIF: `wif` is their wallet balance on Robinhood Chain mainnet (decimal string). */
+      me: { claimed: boolean; cluesBought: number; wif: string } | null
     }

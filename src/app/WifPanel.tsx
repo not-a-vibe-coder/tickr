@@ -96,6 +96,14 @@ export default function WifPanel({ session, canBuy, onClues }: { session: string
       <p className="mt-2 text-[12.5px] leading-relaxed text-ink/75">
         Solve it to win up to <b>{fmtWif(info.maxReward)} $WIF</b> (fewer guesses, bigger share). Paid to your wallet automatically.
       </p>
+      {info.me && (
+        <p className="mt-3 flex items-baseline justify-between gap-3 rounded-xl border-2 border-line bg-surface/70 px-3 py-2 text-[12.5px]">
+          <span className="micro text-ink/70">Your wallet</span>
+          <a href={`${info.explorer}/address/${auth.address}?tab=tokens`} target="_blank" rel="noreferrer" className="font-display text-[18px] leading-none hover:underline">
+            {fmtWif(info.me.wif)} $WIF
+          </a>
+        </p>
+      )}
 
       {canBuy && (
         <div className="mt-3 border-t-2 border-dashed border-line pt-3">

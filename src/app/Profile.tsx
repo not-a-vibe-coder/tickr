@@ -4,10 +4,12 @@ import type { ConfigPayload, PlayerPayload } from '../../shared/api'
 import { useAuth } from './auth'
 import { CopyButton } from './Game'
 import { fmtNum, fmtPx, usePortfolio } from './Trade'
+import { fmtWif, useWifInfo } from './WifPanel'
 
 export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: PlayerPayload | null }) {
   const auth = useAuth()
   const [portfolio] = usePortfolio(auth.address, Boolean(cfg.contract))
+  const { info: wif } = useWifInfo()
   if (!auth.address)
     return (
       <div className="panel mx-auto max-w-lg rounded-[28px] p-10 text-center">
@@ -45,7 +47,16 @@ export default function Profile({ cfg, player }: { cfg: ConfigPayload; player: P
 
       {!cfg.contract && <p className="mb-6 rounded-xl border border-amber/30 p-4 text-[14px] text-amber">On-chain stats appear once the Tickr contract is deployed.</p>}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {wif?.enabled && wif.me && (
+          <div className="col-span-2 lg:col-span-1">
+            {stat(
+              '$WIF balance',
+              <a href={`${wif.explorer}/address/${auth.address}?tab=tokens`} target="_blank" rel="noreferrer" className="hover:underline">{fmtWif(wif.me.wif)}</a>,
+              wif.me.claimed ? 'Today\'s reward claimed · Robinhood Chain' : 'Robinhood Chain mainnet',
+            )}
+          </div>
+        )}
         {stat('Net worth', <span className="flex items-center gap-2 text-market"><Coins size={24} />{portfolio ? fmtNum(portfolio.netWorth, 0) : '—'}</span>, 'TCKR · cash + positions')}
         {stat('Cash', portfolio ? fmtNum(portfolio.cash, 0) : player ? fmtNum(player.points, 0) : '—', 'TCKR available')}
         {stat('Current streak', <span className="flex items-center gap-2 text-amber"><Flame size={24} />{player?.streak ?? 0}</span>, `Best ${player?.bestStreak ?? 0}`)}

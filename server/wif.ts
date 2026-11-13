@@ -4,7 +4,7 @@
  */
 import { createPublicClient, createWalletClient, formatUnits, http, type Address, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { REWARD_TYPES, WIF_POT_ABI, WIF_TOKEN, robinhoodMainnet } from '../shared/wif.js'
+import { REWARD_TYPES, WIF_ERC20_ABI, WIF_POT_ABI, WIF_TOKEN, robinhoodMainnet } from '../shared/wif.js'
 
 const e = (k: string) => (typeof process !== 'undefined' ? process.env[k] : undefined)
 const KEY = e('WIF_SIGNER_KEY') as Hex | undefined
@@ -76,8 +76,12 @@ export async function potInfo(day: number) {
 
 export async function playerWif(player: Address, day: number) {
   if (!wifReady()) return null
-  const [claimed, clues] = await Promise.all([read<boolean>('claimed', [player, day]), read<number>('cluesBought', [player, day])])
-  return { claimed, cluesBought: Number(clues) }
+  const [claimed, clues, balance] = await Promise.all([
+    read<boolean>('claimed', [player, day]),
+    read<number>('cluesBought', [player, day]),
+    wifClient.readContract({ address: WIF_TOKEN, abi: WIF_ERC20_ABI, functionName: 'balanceOf', args: [player] }),
+  ])
+  return { claimed, cluesBought: Number(clues), wif: fmt(balance) }
 }
 
 /** Extra clues the player paid for today (0 if the pot isn't configured or mainnet is unreachable). */
